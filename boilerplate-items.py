@@ -31,7 +31,8 @@ apt.install(
 	"chkrootkit",
 	"clamav",
 	"rkhunter",
-	"Lynis"
+	"Lynis",
+	"libpam-cracklib"
 )
 
 apt.remove(
@@ -50,6 +51,7 @@ apt.autoremove()
 sys(
 """
 ufw enable
+ufw reject incoming
 ufw deny ftp
 """
 )
@@ -120,17 +122,17 @@ lsof | grep "python|perl"
 
 input("Continue?")
 
+print("\n\n\n=> Configuring sshd_config...")
 try:
-	print("\n\n\n=> Configuring sshd_config...")
-	with open("/etc/ssh/sshd_config", 'r') as f:
-		conf = f.read()
-		conf.replace(
-			"PermitRootLogin yes", "PermitRootLogin no"
-		)
+	conf = open("/etc/ssh/sshd_config", 'r').read()
 
-		conf.replace(
-			"PermitEmptyPasswords yes", "PermitEmptyPasswords no"
-		)
+	conf.replace(
+		"PermitRootLogin yes", "PermitRootLogin no"
+	)
+
+	conf.replace(
+		"PermitEmptyPasswords yes", "PermitEmptyPasswords no"
+	)
 
 	open("/etc/ssh/sshd_config", 'w').write(conf)
 except OSError as e: failure(e)
@@ -139,22 +141,48 @@ input("Continue?")
 
 print("\n\n\n=> Configuring login.defs...")
 try:
-	with open("/etc/login.defs", 'r') as f:
-		conf = f.read()
+	conf = open("/etc/login.defs", 'r').read()
 
-		re = compile(conf)
+	re = compile(conf)
 
-		max_days = re.match("^PASS_MAX_DAYS .* $", RE_MULTI).group()
-		min_days = re.match("^PASS_MIN_DAYS .* $", RE_MULTI).group()
-		warn_days = re.match("^PASS_WARN_AGE .* $", RE_MULTI).group()
-		encrypt_method = re.match("^ENCRYPT_METHOD .* $", RE_MULTI)
+	max_days = re.match("^PASS_MAX_DAYS .* $", RE_MULTI).group()
+	min_days = re.match("^PASS_MIN_DAYS .* $", RE_MULTI).group()
+	warn_days = re.match("^PASS_WARN_AGE .* $", RE_MULTI).group()
+	encrypt_method = re.match("^ENCRYPT_METHOD .* $", RE_MULTI)
 
-		conf.replace(max_days, "PASS_MAX_DAYS 90")
-		conf.replace(min_days, "PASS_MIN_DAYS 7")
-		conf.replace(warn_days, "PASS_WARN_AGE 14")
-		conf.replace(encrypt_method, "ENCRYPT_METHOD SHA512")
+	conf.replace(max_days, "PASS_MAX_DAYS 90")
+	conf.replace(min_days, "PASS_MIN_DAYS 10")
+	conf.replace(warn_days, "PASS_WARN_AGE 7")
+	conf.replace(encrypt_method, "ENCRYPT_METHOD SHA512")
 
 	open("/etc/login.defs", 'w').write(conf)
+except OSError as e: failure(e)
+
+input("Continue?")
+
+print("\n\n\n=> Configuring common-password...")
+try:
+	conf = open("/etc/pam.d/common-password", 'r').read()
+
+	re = compile(conf)
+
+	pam_unix = re.match("^pam_unix.so .* $", RE_MULTI).group()
+	cracklib = re.match("^pam_cracklib.so .* $", RE_MULTI).group()
+
+	conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
+	conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
+
+
+	open("/etc/pam.d/common-password", 'w').write(conf)
+except OSError as e: failure(e)
+
+print("\n\n\n=> Configuring common-auth...")
+try:
+	conf = open("/etc/pam.d/common-auth", 'r').read()
+
+	conf+="\n\nauth required pam_tally2.so deny=5 onerr=fail unlock_time=1800"
+
+	open("/etc/pam.d/common-auth", 'w').write(conf)
 except OSError as e: failure(e)
 
 input("Continue?")
