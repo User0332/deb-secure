@@ -17,13 +17,13 @@ print("\n\n\n=> Basic package installs, updates upgrades...")
 apt.update()
 apt.upgrade()
 
-# Install lynis
-sys(
-"""
-wget -O - https://packages.cisofy.com/keys/cisofy-software-public.key | sudo apt-key add -
-echo "deb https://packages.cisofy.com/community/lynis/deb/ stable main" | sudo tee /etc/apt/sources.list.d/cisofy-lynis.list
-"""
-)
+# # Install lynis
+# sys(
+# """
+# wget -O - https://packages.cisofy.com/keys/cisofy-software-public.key | sudo apt-key add -
+# echo "deb https://packages.cisofy.com/community/lynis/deb/ stable main" | sudo tee /etc/apt/sources.list.d/cisofy-lynis.list
+# """
+# )
 
 apt.install(
 	"ufw", 
@@ -31,7 +31,7 @@ apt.install(
 	"chkrootkit",
 	"clamav",
 	"rkhunter",
-	"Lynis",
+	# "Lynis", => temp removed - failure on above install ^
 	"libpam-cracklib"
 )
 
@@ -50,9 +50,9 @@ apt.autoremove()
 
 sys(
 """
-ufw enable
-ufw reject incoming
+ufw default reject incoming
 ufw deny ftp
+ufw enable
 """
 )
 
