@@ -251,8 +251,6 @@ for user in pwd.getpwall():
 		print(f"trying to add {user} to admin group...")
 		sys(f"usermod -a -G admin {user}")
 
-input("Continue?")
-
 input("Exit?")
 
 
