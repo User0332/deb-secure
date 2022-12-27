@@ -253,8 +253,6 @@ for user in pwd.getpwall():
 
 input("Continue?")
 
-sys("update-manager")
-
 input("Exit?")
 
 
@@ -264,3 +262,9 @@ input("Exit?")
 
 # NOTE: Purple update config from the command line was scrapped,
 # it just opens up the update manager now for the user to configure manually
+
+# NOTE: The script does not: 
+# - Config Firefox
+# - Perform System Updates (purple)
+# - Change bad admin passwds
+# - Config all needed /etc/ files
