@@ -146,14 +146,14 @@ try:
 
 	re = compile(conf)
 
-	max_days = re.match("^PASS_MAX_DAYS .* $", RE_MULTI).group()
-	min_days = re.match("^PASS_MIN_DAYS .* $", RE_MULTI).group()
-	warn_days = re.match("^PASS_WARN_AGE .* $", RE_MULTI).group()
-	encrypt_method = re.match("^ENCRYPT_METHOD .* $", RE_MULTI)
+	max_days = re.search("^PASS_MAX_DAYS.*$", RE_MULTI).group()
+	min_days = re.search("^PASS_MIN_DAYS.*$", RE_MULTI).group()
+	warn_days = re.search("^PASS_WARN_AGE.*$", RE_MULTI).group()
+	encrypt_method = re.search("^ENCRYPT_METHOD.*$", RE_MULTI).group()
 
-	conf.replace(max_days, "PASS_MAX_DAYS 90")
-	conf.replace(min_days, "PASS_MIN_DAYS 10")
-	conf.replace(warn_days, "PASS_WARN_AGE 7")
+	conf.replace(max_days, "PASS_MAX_DAYS\t90")
+	conf.replace(min_days, "PASS_MIN_DAYS\t10")
+	conf.replace(warn_days, "PASS_WARN_AGE\t7")
 	conf.replace(encrypt_method, "ENCRYPT_METHOD SHA512")
 
 	open("/etc/login.defs", 'w').write(conf)
@@ -167,8 +167,8 @@ try:
 
 	re = compile(conf)
 
-	pam_unix = re.match("^pam_unix.so .* $", RE_MULTI).group()
-	cracklib = re.match("^pam_cracklib.so .* $", RE_MULTI).group()
+	pam_unix = re.search("^pam_unix.so.*$", RE_MULTI).group()
+	cracklib = re.search("^pam_cracklib.so.*$", RE_MULTI).group()
 
 	conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
 	conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
