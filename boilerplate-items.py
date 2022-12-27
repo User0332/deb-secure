@@ -116,8 +116,8 @@ input("Continue?")
 print("\n\n\n=> Searching for backdoors... { try `whereis` maybe? }")
 sys(
 """
-netstat -ano -p tcp | grep "python|perl"
-lsof | grep "python|perl"
+bash -c netstat -ano -p tcp | grep -E "python|perl|py|pl"
+bash -c lsof | grep python|perl
 """
 )
 
