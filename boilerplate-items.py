@@ -149,10 +149,12 @@ try:
 	warn_days = re.search("^PASS_WARN_AGE.*$", conf, re.MULTILINE).group()
 	encrypt_method = re.search("^ENCRYPT_METHOD.*$", conf, re.MULTILINE).group()
 
-	conf.replace(max_days, "PASS_MAX_DAYS\t90")
-	conf.replace(min_days, "PASS_MIN_DAYS\t10")
-	conf.replace(warn_days, "PASS_WARN_AGE\t7")
-	conf.replace(encrypt_method, "ENCRYPT_METHOD SHA512")
+	print(max_days)
+
+	conf = conf.replace(max_days, "PASS_MAX_DAYS\t90")
+	conf = conf.replace(min_days, "PASS_MIN_DAYS\t10")
+	conf = conf.replace(warn_days, "PASS_WARN_AGE\t7")
+	conf = conf.replace(encrypt_method, "ENCRYPT_METHOD SHA512")
 
 	open("/etc/login.defs", 'w').write(conf)
 except OSError as e: failure(e)
@@ -166,8 +168,8 @@ try:
 	pam_unix = re.search("^pam_unix.so.*$", conf, re.MULTILINE).group()
 	cracklib = re.search("^pam_cracklib.so.*$", conf, re.MULTILINE).group()
 
-	conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
-	conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
+	conf = conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
+	conf = conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
 
 
 	open("/etc/pam.d/common-password", 'w').write(conf)
