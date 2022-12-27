@@ -33,7 +33,7 @@ def _sys(cmd: str, **kwargs):
 	except OSError as e: failure(e)
 
 def sys(cmds: str):
-	return [_sys(cmd) for cmd in cmds.splitlines()]
+	return [_sys(cmd) for cmd in cmds.splitlines() if cmd]
 
 def find(pattern: str, dir: str='/'):
 	return glob.glob(f"{dir}**/{pattern}", recursive=True)
