@@ -45,7 +45,7 @@ def rmrf(*paths: str):
 
 def get_usertype_input(user):
 	while 1:
-		input_type = input(f"User Type for {user}?\ns (std), a (adm), n (doesn't exist): ").lower()
+		input_type = input(f"User Type for {user}?\ns (std), a (adm), n (doesn't exist) i (ignore): ").lower()
 
 		if input_type in ('s', "std", "standard", "reg", "regular"):
 			return "std"
@@ -53,6 +53,8 @@ def get_usertype_input(user):
 			return "adm"
 		elif input_type in ('n', "none", "delete"):
 			return "none"
+		elif input_type in ('i', 'ignore'):
+			return "ignore"
 		else:
 			failure("[Invalid Input!]")
 

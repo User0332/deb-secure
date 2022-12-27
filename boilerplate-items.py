@@ -175,11 +175,8 @@ except OSError as e: failure(e)
 
 print("\n\n\n=> Configuring common-auth...")
 try:
-	conf = open("/etc/pam.d/common-auth", 'r').read()
-
-	conf+="\n\nauth required pam_tally2.so deny=5 onerr=fail unlock_time=1800"
-
-	open("/etc/pam.d/common-auth", 'w').write(conf)
+	open("/etc/pam.d/common-auth", 'a') \
+		.write("\n\nauth required pam_tally2.so deny=5 onerr=fail unlock_time=1800")
 except OSError as e: failure(e)
 
 input("Continue?")
@@ -203,14 +200,15 @@ sysctl -w net.ipv4.conf.default.secure_redirects=0
 input("Continue?")
 
 print("\n\n\n=> Configuring cron.allow and at.allow to only allow root...")
-rmrf("cron.deny", "at.deny")
+input("NEED TO SET THIS MANUALLY IF IT DOESN'T WORK -> enter to continue")
+rmrf("/etc/cron.d/cron.deny", "/etc/cron.d/at.deny")
 sys(
 """
-echo root > cron.allow
-echo root > at.allow
+bash -c echo root > /etc/cron.d/cron.allow
+bash -c echo root > /etc/cron.d/at.allow
 
-chown root cron.allow at.allow
-chmod 600 cron.allow at.allow
+chown root /etc/cron.d/cron.allow /etc/cron.d/at.allow
+chmod 600 /etc/cron.d/cron.allow /etc/cron.d/at.allow
 """
 )
 
@@ -225,22 +223,24 @@ input("Continue?")
 print("\n\n\n=> Looping thru users")
 
 for user in pwd.getpwall():
-	user_type = get_usertype_input(user.pw_name)
+	name = user.pw_name
+
+	user_type = get_usertype_input(name)
 
 	if user_type == "none":
-		print(f"trying to delete {user}...")
-		sys(f"deluser {user}")
+		print(f"trying to delete {name}...")
+		sys(f"deluser {name}")
 
 	if user_type == "std":
-		print(f"trying to remove {user} from admin group...")
-		sys(f"deluser {user} admin")
+		print(f"trying to remove {name} from admin group...")
+		sys(f"deluser {name} adm")
 
-		new_passwd, passwd_file = generate_passwd(user)
+		new_passwd, passwd_file = generate_passwd(name)
 
-		print(f"trying to secure this user's password... ({new_passwd=})")
+		print(f"trying to secure {name}'s password... ({new_passwd=})")
 		with open(passwd_file, 'r') as f:
 			_sys(
-				f"passwd {user}",
+				f"passwd {name}",
 				stdin=f
 			)
 
@@ -263,3 +263,4 @@ input("Exit?")
 # - Perform System Updates (purple)
 # - Change bad admin passwds
 # - Config all needed /etc/ files
+# - Set cron.allow (sometimes failes)
