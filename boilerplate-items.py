@@ -127,11 +127,11 @@ print("\n\n\n=> Configuring sshd_config...")
 try:
 	conf = open("/etc/ssh/sshd_config", 'r').read()
 
-	conf.replace(
+	conf = conf.replace(
 		"PermitRootLogin yes", "PermitRootLogin no"
 	)
 
-	conf.replace(
+	conf = conf.replace(
 		"PermitEmptyPasswords yes", "PermitEmptyPasswords no"
 	)
 
@@ -149,8 +149,6 @@ try:
 	warn_days = re.search("^PASS_WARN_AGE.*$", conf, re.MULTILINE).group()
 	encrypt_method = re.search("^ENCRYPT_METHOD.*$", conf, re.MULTILINE).group()
 
-	print(max_days)
-
 	conf = conf.replace(max_days, "PASS_MAX_DAYS\t90")
 	conf = conf.replace(min_days, "PASS_MIN_DAYS\t10")
 	conf = conf.replace(warn_days, "PASS_WARN_AGE\t7")
@@ -165,8 +163,8 @@ print("\n\n\n=> Configuring common-password...")
 try:
 	conf = open("/etc/pam.d/common-password", 'r').read()
 
-	pam_unix = re.search("^pam_unix.so.*$", conf, re.MULTILINE).group()
-	cracklib = re.search("^pam_cracklib.so.*$", conf, re.MULTILINE).group()
+	pam_unix = re.search("pam_unix.so.*$", conf, re.MULTILINE).group()
+	cracklib = re.search("pam_cracklib.so.*$", conf, re.MULTILINE).group()
 
 	conf = conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
 	conf = conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
