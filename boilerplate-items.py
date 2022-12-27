@@ -1,5 +1,5 @@
 import pwd
-from re import compile, MULTILINE as RE_MULTI
+import re
 from utils import (
 	apt, sys, _sys,
 	rmrf, failure,
@@ -144,12 +144,10 @@ print("\n\n\n=> Configuring login.defs...")
 try:
 	conf = open("/etc/login.defs", 'r').read()
 
-	re = compile(conf)
-
-	max_days = re.search("^PASS_MAX_DAYS.*$", RE_MULTI).group()
-	min_days = re.search("^PASS_MIN_DAYS.*$", RE_MULTI).group()
-	warn_days = re.search("^PASS_WARN_AGE.*$", RE_MULTI).group()
-	encrypt_method = re.search("^ENCRYPT_METHOD.*$", RE_MULTI).group()
+	max_days = re.search("^PASS_MAX_DAYS.*$", conf, re.MULTILINE).group()
+	min_days = re.search("^PASS_MIN_DAYS.*$", conf, re.MULTILINE).group()
+	warn_days = re.search("^PASS_WARN_AGE.*$", conf, re.MULTILINE).group()
+	encrypt_method = re.search("^ENCRYPT_METHOD.*$", conf, re.MULTILINE).group()
 
 	conf.replace(max_days, "PASS_MAX_DAYS\t90")
 	conf.replace(min_days, "PASS_MIN_DAYS\t10")
@@ -165,10 +163,8 @@ print("\n\n\n=> Configuring common-password...")
 try:
 	conf = open("/etc/pam.d/common-password", 'r').read()
 
-	re = compile(conf)
-
-	pam_unix = re.search("^pam_unix.so.*$", RE_MULTI).group()
-	cracklib = re.search("^pam_cracklib.so.*$", RE_MULTI).group()
+	pam_unix = re.search("^pam_unix.so.*$", conf, re.MULTILINE).group()
+	cracklib = re.search("^pam_cracklib.so.*$", conf, re.MULTILINE).group()
 
 	conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
 	conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
