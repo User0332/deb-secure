@@ -68,12 +68,13 @@ rkhunter --update
 rkhunter --propupd
 rkhunter --check --rwo
 
+systemctl stop clamav-freshclam.service
 freshclam
 clamscan -r -i /
-
-lynis update info
-lynis audit system
+systemctl restart clamav-freshclam.service
 """
+# lynis update info => removed because of install failure
+# lynis audit system
 )
 
 input("Continue?")
