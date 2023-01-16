@@ -7,11 +7,6 @@ from utils import (
 	generate_passwd
 )
 
-# verify sudo
-if _sys("sudo echo passed") != 0:
-	print("Please run this with sudo or in a su shell!")
-	exit(1)
-
 print("\n\n\n=> Basic package installs, updates upgrades...")
 
 apt.update()
