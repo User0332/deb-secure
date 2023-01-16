@@ -24,7 +24,6 @@ apt.install(
 	"ufw", 
 	"net-tools",
 	"chkrootkit",
-	"clamav",
 	"rkhunter",
 	"lynis",
 	"libpam-cracklib"
@@ -63,9 +62,6 @@ rkhunter --update
 rkhunter --propupd
 rkhunter --check --rwo
 
-systemctl stop clamav-freshclam.service
-freshclam
-clamscan -r -i /
 systemctl restart clamav-freshclam.service
 lynis update info => removed because of install failure
 lynis audit system
@@ -108,11 +104,17 @@ find /home -name "*.txt"
 
 input("Continue?")
 
-print("\n\n\n=> Searching for backdoors... { try `whereis` maybe? }")
+print("\n\n\n=> Searching for backdoors (netstat)... { try `whereis` maybe? }")
 sys(
 """
 bash -c netstat -ano -p tcp | grep -E "python|perl|py|pl"
-bash -c lsof | grep python|perl
+"""
+)
+
+print("\n\n\n=> Searching for backdoors (lsof)... { try `whereis` maybe? }")
+sys(
+"""
+bash -c lsof | grep -E "python|perl|py|pl"
 """
 )
 
@@ -240,8 +242,8 @@ for user in pwd.getpwall():
 			)
 
 	if user_type == "adm":
-		print(f"trying to add {user} to admin group...")
-		sys(f"usermod -a -G admin {user}")
+		print(f"trying to add {name} to admin group...")
+		sys(f"usermod -a -G adm {name}")
 
 input("Exit?")
 
@@ -259,3 +261,5 @@ input("Exit?")
 # - Change bad admin passwds
 # - Config all needed /etc/ files
 # - Set cron.allow (sometimes failes)
+
+# NOTE: CLAMAV REMOVED FOR UNKNOWN BUG
