@@ -12,13 +12,13 @@ print("\n\n\n=> Basic package installs, updates upgrades...")
 apt.update()
 apt.upgrade()
 
-# # Install lynis
-# sys(
-# """
-# wget -O - https://packages.cisofy.com/keys/cisofy-software-public.key | sudo apt-key add -
-# echo "deb https://packages.cisofy.com/community/lynis/deb/ stable main" | sudo tee /etc/apt/sources.list.d/cisofy-lynis.list
-# """
-# )
+# Install lynis
+sys(
+"""
+bash -c wget -O - https://packages.cisofy.com/keys/cisofy-software-public.key | sudo apt-key add -
+bash -c echo "deb https://packages.cisofy.com/community/lynis/deb/ stable main" | sudo tee /etc/apt/sources.list.d/cisofy-lynis.list
+"""
+)
 
 apt.install(
 	"ufw", 
@@ -26,7 +26,7 @@ apt.install(
 	"chkrootkit",
 	"clamav",
 	"rkhunter",
-	# "Lynis", => temp removed - failure on above install ^
+	"lynis",
 	"libpam-cracklib"
 )
 
@@ -67,9 +67,9 @@ systemctl stop clamav-freshclam.service
 freshclam
 clamscan -r -i /
 systemctl restart clamav-freshclam.service
+lynis update info => removed because of install failure
+lynis audit system
 """
-# lynis update info => removed because of install failure
-# lynis audit system
 )
 
 input("Continue?")
