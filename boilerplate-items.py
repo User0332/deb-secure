@@ -63,7 +63,7 @@ rkhunter --propupd
 rkhunter --check --rwo
 
 systemctl restart clamav-freshclam.service
-lynis update info => removed because of install failure
+lynis update info
 lynis audit system
 """
 )
