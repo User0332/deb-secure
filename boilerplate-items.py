@@ -245,21 +245,7 @@ for user in pwd.getpwall():
 		print(f"trying to add {name} to admin group...")
 		sys(f"usermod -a -G adm {name}")
 
-username = input("Please enter your username (as shown in terminal)")
-
-input("Continue to software manager?")
-sys(f"sudo -u {username} software-properties-gtk --open-tab=2")
-
-input("Continue to firefox?")
-sys(f"sudo -u {username} firefox --preferences")
-
-input("Continue once software cache has been reloaded")
-apt.update()
-apt.upgrade()
-
-input("Exit? - RUN `SUDO REBOOT` IMMEDIATELY")
-print("ALSO REMOVE AUTOLOGIN")
-print("RUN LYNIS AGAIN AND READ THRU THE OUTPUT -> THERE ARE SYSCTL CONFS TOO")
+input("Exit? RUN run-software-cache.py after exiting")
 
 
 # TODO: ETC File configs thru commands like `sysctl` => 
