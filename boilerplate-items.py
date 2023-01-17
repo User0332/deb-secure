@@ -245,7 +245,7 @@ for user in pwd.getpwall():
 		print(f"trying to add {name} to admin group...")
 		sys(f"usermod -a -G adm {name}")
 
-input("Exit? RUN run-software-cache.py after exiting")
+input("Exit? RUN run-software-cache.py after exiting WITHOUT SUDO")
 
 
 # TODO: ETC File configs thru commands like `sysctl` => 
