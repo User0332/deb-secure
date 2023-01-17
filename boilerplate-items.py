@@ -31,7 +31,7 @@ apt.install(
 
 apt.remove(
 	"samba-common", "icecast2",
-	"zangband", "npcap", "ophcrack",
+	"zangband", "libpcap", "ophcrack",
 	"hydra", "deluge", "wireshark",
 	"utorrent", "nmap", "avernum",
 	"manaplus", "ettercap", "zenmap",
@@ -245,21 +245,27 @@ for user in pwd.getpwall():
 		print(f"trying to add {name} to admin group...")
 		sys(f"usermod -a -G adm {name}")
 
+username = input("Please enter your username (as shown in terminal)")
+
 input("Continue to software manager?")
-sys("software-properties-gtk --open-tab=2")
+sys(f"sudo -u {username} software-properties-gtk --open-tab=2")
 
 input("Continue to firefox?")
-sys("firefox --preferences")
+sys(f"sudo -u {username} firefox --preferences")
 
 input("Continue once software cache has been reloaded")
 apt.update()
 apt.upgrade()
 
 input("Exit? - RUN `SUDO REBOOT` IMMEDIATELY")
+print("ALSO REMOVE AUTOLOGIN")
+print("RUN LYNIS AGAIN AND READ THRU THE OUTPUT -> THERE ARE SYSCTL CONFS TOO")
 
 
 # TODO: ETC File configs thru commands like `sysctl` => 
 #   - USE THE ENTIRETY OF THE GOLD CHECKLIST, EVEN WHATEVER IS ON THE BOTTOM
+
+# TODO: Remove autologin
 
 # TODO: Read thru the other guy's script => check out the iptables nonsense
 
