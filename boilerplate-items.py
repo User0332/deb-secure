@@ -245,19 +245,30 @@ for user in pwd.getpwall():
 		print(f"trying to add {name} to admin group...")
 		sys(f"usermod -a -G adm {name}")
 
-input("Exit?")
+input("Continue to software manager?")
+sys("software-properties-gtk --open-tab=2")
+
+input("Continue to firefox?")
+sys("firefox --preferences")
+
+input("Continue once software cache has been reloaded")
+apt.update()
+apt.upgrade()
+
+input("Exit? - RUN `SUDO REBOOT` IMMEDIATELY")
 
 
 # TODO: ETC File configs thru commands like `sysctl` => 
 #   - USE THE ENTIRETY OF THE GOLD CHECKLIST, EVEN WHATEVER IS ON THE BOTTOM
+
 # TODO: Read thru the other guy's script => check out the iptables nonsense
 
 # NOTE: Purple update config from the command line was scrapped,
 # it just opens up the update manager now for the user to configure manually
 
 # NOTE: The script does not: 
-# - Config Firefox
-# - Perform System Updates (purple)
+# - Config Firefox (opens firefox window)
+# - Perform System Update Config (opens the window)
 # - Change bad admin passwds
 # - Config all needed /etc/ files
 # - Set cron.allow (sometimes failes)
