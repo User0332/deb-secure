@@ -59,7 +59,7 @@ def get_usertype_input(user):
 			failure("[Invalid Input!]")
 
 def generate_passwd(user: str):
-	passwd = secrets.token_urlsafe(8)
+	passwd = secrets.token_urlsafe(16)
 
 	file = f"./{user}_pwd_delete-this.del.pls"
 	
