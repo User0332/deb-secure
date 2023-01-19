@@ -108,14 +108,14 @@ input("Continue?")
 print("\n\n\n=> Searching for backdoors (netstat)... { try `whereis` maybe? }")
 sys(
 """
-bash -c netstat -ano -p tcp | grep -E "python|perl|py|pl"
+bash -c netstat -ano -p tcp | grep -E "python|perl|\\.py|\\.pl"
 """
 )
 
 print("\n\n\n=> Searching for backdoors (lsof)... { try `whereis` maybe? }")
 sys(
 """
-bash -c lsof | grep -E "python|perl|py|pl"
+bash -c lsof | grep -E "python|perl|\\.py|\\.pl"
 """
 )
 
@@ -157,7 +157,7 @@ except OSError as e: failure(e)
 
 input("Continue?")
 
-print("\n\n\n=> Configuring common-password...")
+print("\n\n\n=> Configuring common-password... SET MANUALLY IF FAIL")
 try:
 	conf = open("/etc/pam.d/common-password", 'r').read()
 
@@ -169,7 +169,7 @@ try:
 
 
 	open("/etc/pam.d/common-password", 'w').write(conf)
-except OSError as e: failure(e)
+except (OSError, AttributeError) as e: failure(e)
 
 print("\n\n\n=> Configuring common-auth...")
 try:
