@@ -31,11 +31,13 @@ apt.install(
 
 apt.remove(
 	"samba-common", "icecast2",
-	"zangband", "libpcap", "ophcrack",
+	"zangband", "libpcap-dev", "ophcrack",
 	"hydra", "deluge", "wireshark",
 	"utorrent", "nmap", "avernum",
 	"manaplus", "ettercap", "zenmap",
-	"freeciv", "kismet"
+	"freeciv", "kismet-plugins",
+	"libnet-akismet-perl",
+	"ruby-akismet"
 )
 
 apt.clean()
@@ -62,7 +64,6 @@ rkhunter --update
 rkhunter --propupd
 rkhunter --check --rwo
 
-systemctl restart clamav-freshclam.service
 lynis update info
 lynis audit system
 """
