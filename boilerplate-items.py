@@ -7,10 +7,7 @@ from utils import (
 	generate_passwd
 )
 
-print("\n\n\n=> Basic package installs, updates upgrades...")
-
-apt.update()
-apt.upgrade()
+print("\n\n\n=> Basic package installs, remove bad packages")
 
 # Install lynis
 sys(
@@ -26,15 +23,17 @@ apt.install(
 	"chkrootkit",
 	"rkhunter",
 	"lynis",
-	"libpam-cracklib"
+	"libpam-cracklib",
+	"stacer"
 )
+
 
 apt.remove(
 	"samba-common", "icecast2",
 	"zangband", "libpcap-dev", "ophcrack",
 	"hydra", "deluge", "wireshark",
 	"utorrent", "nmap", "avernum",
-	"manaplus", "ettercap", "zenmap",
+	"manaplus", "ettercap", "ettercap-graphical", "zenmap",
 	"freeciv", "kismet-plugins",
 	"libnet-akismet-perl",
 	"ruby-akismet"
@@ -71,6 +70,7 @@ lynis audit system
 
 input("Continue?")
 
+# TODO: ALL FIND CMDS ARE BROKEN
 print("\n\n\n=> Music, Image & Video Files:")
 sys(
 """
@@ -133,6 +133,10 @@ try:
 		"PermitEmptyPasswords yes", "PermitEmptyPasswords no"
 	)
 
+	conf = conf.replace(
+		"X11Forwarding yes", "X11Forwarding no"
+	)
+
 	open("/etc/ssh/sshd_config", 'w').write(conf)
 except OSError as e: failure(e)
 
@@ -155,18 +159,20 @@ try:
 	open("/etc/login.defs", 'w').write(conf)
 except OSError as e: failure(e)
 
-input("Continue?")
+input("Continue?") 
 
 print("\n\n\n=> Configuring common-password... SET MANUALLY IF FAIL")
 try:
 	conf = open("/etc/pam.d/common-password", 'r').read()
 
-	pam_unix = re.search("pam_unix.so.*$", conf, re.MULTILINE).group()
-	cracklib = re.search("pam_cracklib.so.*$", conf, re.MULTILINE).group()
+	try:
+		pam_unix = re.search("pam_unix\.so.*$", conf, re.MULTILINE).group()
+		cracklib = re.search("pam_cracklib\.so.*$", conf, re.MULTILINE).group()
 
-	conf = conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
-	conf = conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
-
+		conf = conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
+		conf = conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
+	except TypeError:
+		conf+=f"\n\n{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1 difok=4"
 
 	open("/etc/pam.d/common-password", 'w').write(conf)
 except (OSError, AttributeError) as e: failure(e)
@@ -174,24 +180,54 @@ except (OSError, AttributeError) as e: failure(e)
 print("\n\n\n=> Configuring common-auth...")
 try:
 	open("/etc/pam.d/common-auth", 'a') \
-		.write("\n\nauth required pam_tally2.so deny=5 onerr=fail unlock_time=1800")
+		.write("\n\nauth required pam_faillock.so deny=5 onerr=fail unlock_time=1800")
 except OSError as e: failure(e)
 
 input("Continue?")
 
-print("\n\n\n=> Configuring sysctl...")
+print("\n\n\n=> Configuring sysctl...") ## do all vars qu'lyins recommends
 sys(
 """
+sysctl -w  dev.tty.ldisc_autoload=0
+sysctl -w  fs.protected_fifos=2
+sysctl -w  fs.protected_hardlinks=1
+sysctl -w  fs.protected_regular=2
+sysctl -w  fs.protected_symlinks=1
+sysctl -w  fs.suid_dumpable=0
+sysctl -w  kernel.core_uses_pid=1
+sysctl -w  kernel.ctrl-alt-del=0
+sysctl -w  kernel.dmesg_restrict=1
+sysctl -w  kernel.kptr_restrict=2
+sysctl -w  kernel.modules_disabled=1
+sysctl -w  kernel.perf_event_paranoid=3
+sysctl -w  kernel.randomize_va_space=2
+sysctl -w  kernel.sysrq=0
+sysctl -w  kernel.unprivileged_bpf_disabled=1
+sysctl -w  kernel.yama.ptrace_scope=1
+sysctl -w  net.core.bpf_jit_harden=2
+sysctl -w  net.ipv4.conf.all.accept_redirects=0
+sysctl -w  net.ipv4.conf.all.accept_source_route=0
+sysctl -w  net.ipv4.conf.all.bootp_relay=0
+sysctl -w  net.ipv4.conf.all.forwarding=0
+sysctl -w  net.ipv4.conf.all.log_martians=1
+sysctl -w  net.ipv4.conf.all.mc_forwarding=0
+sysctl -w  net.ipv4.conf.all.proxy_arp=0
+sysctl -w  net.ipv4.conf.all.rp_filter=1
+sysctl -w  net.ipv4.conf.all.send_redirects=0
+sysctl -w  net.ipv4.conf.default.accept_redirects=0
+sysctl -w  net.ipv4.conf.default.accept_source_route=0
+sysctl -w  net.ipv4.conf.default.log_martians=1
+sysctl -w  net.ipv4.icmp_echo_ignore_broadcasts=1
+sysctl -w  net.ipv4.icmp_ignore_bogus_error_responses=1
+sysctl -w  net.ipv4.tcp_syncookies=1
+sysctl -w  net.ipv4.tcp_timestamps=0
+sysctl -w  net.ipv6.conf.all.accept_redirects=0
+sysctl -w  net.ipv6.conf.all.accept_source_route=0
+sysctl -w  net.ipv6.conf.default.accept_redirects=0
+sysctl -w  net.ipv6.conf.default.accept_source_route=0
 sysctl -w net.ipv4.tcp_syncookies=1
 sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sysctl -w net.ipv4.ip_forwarding=0
-
-sysctl -w net.ipv4.conf.all.send_redirects=0
-sysctl -w net.ipv4.conf.default.send_redirects=0
-sysctl -w net.ipv4.conf.all.accept_redirects=0
-sysctl -w net.ipv4.conf.default.accept_redirects=0
-sysctl -w net.ipv4.conf.all.secure_redirects=0
-sysctl -w net.ipv4.conf.default.secure_redirects=0
 """
 )
 
@@ -218,6 +254,11 @@ sys("service --status-all")
 
 input("Continue?")
 
+print("\n\n\nsetting /etc/ file perms [-R 700]")
+sys("chmod -R 700 /etc")
+
+input("Continue?")
+
 print("\n\n\n=> Looping thru users")
 
 for user in pwd.getpwall():
@@ -231,7 +272,8 @@ for user in pwd.getpwall():
 
 	if user_type == "std":
 		print(f"trying to remove {name} from admin group...")
-		sys(f"deluser {name} adm")
+		sys(f"deluser {name} adm") # Cyb3rPatri0t!
+		sys(f"deluser {name} sudo")
 
 		new_passwd, passwd_file = generate_passwd(name)
 
@@ -246,7 +288,14 @@ for user in pwd.getpwall():
 		print(f"trying to add {name} to admin group...")
 		sys(f"usermod -a -G adm {name}")
 
+input("Continue? (next update, upgrade)")
+
+apt.update()
+apt.upgrade()
+
 input("Exit? RUN run-software-cache.py after exiting WITHOUT SUDO")
+
+sys("stacer")
 
 
 # TODO: ETC File configs thru commands like `sysctl` => 

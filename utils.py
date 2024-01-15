@@ -14,11 +14,11 @@ class _apt:
 		try: return subprocess.call(["apt", *cmd.split()])
 		except OSError as e: failure(e)
 
-	def install(self, *packages: str): return [self(f"install {package}") for package in packages]
+	def install(self, *packages: str): return [self(f"install -y {package}") for package in packages]
 
-	def remove(self, *packages: str): return [self(f"remove {package}") for package in packages]
+	def remove(self, *packages: str): return [self(f"remove -y {package}") for package in packages]
 
-	def autoremove(self): return self("autoremove")
+	def autoremove(self): return self("autoremove -y")
 	
 	def clean(self): return self("clean")
 
