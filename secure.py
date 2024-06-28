@@ -30,12 +30,12 @@ DEFAULT_USERS_TO_IGNORE: list[str] = []
 CONTINUE_PROMPT = "<enter to continue, CTRL-C at any time to exit> "
 
 def vsftpd_config():
-	conf = open("/etc/vsftpd/vsftpd.conf", 'r').read()
+	conf = open("/etc/vsftpd.conf", 'r').read()
 
 	conf = set_config_variable(conf, "anonymous_enable", "NO")
 	conf = set_config_variable(conf, "ssl_enable", "YES")
 
-	open("/etc/vsftpd/vsftpd.conf", 'w').read()
+	open("/etc/vsftpd.conf", 'w').read()
 
 def nginx_config():
 	print("nginx auto-config not implemented yet")
