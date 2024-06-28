@@ -4,7 +4,7 @@ import pwd
 import re
 import getpass
 from utils import (
-	apt, rmrf, sys, _sys,
+	apt, rmrf, set_config_variable, sys, _sys,
 	warn, failure,
 	get_usertype_input
 )
@@ -22,6 +22,7 @@ DEFAULT_MODULES: list[str] = [
 	"firewall", # done -- maybe add more in the future?
 	"hardening-variables", # done - has todos
 	"upgrade-system", # done - see todos
+	"apt-config", 
 ]
 
 DEFAULT_USERS_TO_IGNORE: list[str] = []
@@ -29,14 +30,33 @@ DEFAULT_USERS_TO_IGNORE: list[str] = []
 CONTINUE_PROMPT = "<enter to continue, CTRL-C at any time to exit> "
 
 def vsftpd_config():
-	print("vsftpd auto-config not implemented yet")
+	conf = open("/etc/vsftpd/vsftpd.conf", 'r').read()
+
+	conf = set_config_variable(conf, "anonymous_enable", "NO")
+	conf = set_config_variable(conf, "ssl_enable", "YES")
+
+	open("/etc/vsftpd/vsftpd.conf", 'w').read()
 
 def nginx_config():
 	print("nginx auto-config not implemented yet")
 
 def apache2_config():
-	print("apache2 auto-config not implemented yet")
+	conf = open("/etc/apache2/apache2.conf", 'r').read()
 
+	conf = set_config_variable(conf, "ServerTokens", "Prod")
+	conf = set_config_variable(conf, "ServerSignature", "Off")
+	conf = set_config_variable(conf, "Header", "always unset X-Powered-By")
+	conf = set_config_variable(conf, "TraceEnable", "Off")
+
+	open("/etc/apache2/apache2.conf", 'w').read()
+
+def apt_config():
+	conf = open("/etc/apt/sources.list", 'r').read()
+
+	if (re.search(r"#\sdeb http://security\.debian\.org/debian-security bookworm-security main contrib non-free non-free-firmware", conf) is not None) or ("deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" not in conf):
+		conf+="\n\ndeb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware"
+			
+	open("/etc/apt/sources.list", 'w').write(conf)
 
 def sshd_config(): # TODO: use regex to make sure necessary lines are uncommented, add more, including keys for users
 	sys("ufw allow ssh")
@@ -45,41 +65,20 @@ def sshd_config(): # TODO: use regex to make sure necessary lines are uncommente
 	try:
 		conf = open("/etc/ssh/sshd_config", 'r').read()
 
-		conf = conf.replace(
-			"PermitRootLogin yes", "PermitRootLogin no"
-		)
-
-		conf = conf.replace(
-			"PermitEmptyPasswords yes", "PermitEmptyPasswords no"
-		)
-
-		conf = conf.replace(
-			"PermitTunnel yes", "PermitTunnel no"
-		)
-
-		conf = conf.replace(
-			"PasswordAuthentication yes", "PasswordAuthentication no"
-		)
-
-		conf = conf.replace(
-			"X11Forwarding yes", "X11Forwarding no"
-		)
-
-		conf = conf.replace(
-			"AllowTcpForwarding yes", "AllowTcpForwarding no"
-		)
-
-		conf = conf.replace(
-			"AllowAgentForwarding yes", "AllowAgentForwarding no"
-		)
-
-		conf = conf.replace(
-			"DebianBanner yes", "DebianBanner no"
-		)
-
-		conf = conf.replace(
-			"UsePAM no", "UsePAM yes"
-		)
+		conf = set_config_variable(conf, "PermitRootLogin", "no")
+		conf = set_config_variable(conf, "PermitEmptyPasswords", "no")
+		conf = set_config_variable(conf, "PermitTunnel", "no")
+		conf = set_config_variable(conf, "PasswordAuthentication", "no")
+		conf = set_config_variable(conf, "X11Forwarding", "no")
+		conf = set_config_variable(conf, "AllowTcpForwarding", "no")
+		conf = set_config_variable(conf, "AllowAgentForwarding", "no")
+		conf = set_config_variable(conf, "DebianBanner", "no")
+		conf = set_config_variable(conf, "UsePAM", "yes")
+		conf = set_config_variable(conf, "IgnoreRhosts", "yes")
+		conf = set_config_variable(conf, "MaxAuthTries", '5')
+		conf = set_config_variable(conf, "Ciphers", "aes128-ctr,aes192-ctr,aes256-ctr")
+		conf = set_config_variable(conf, "ClientAliveInterval", "900")
+		conf = set_config_variable(conf, "ClientAliveCountMax", '0')
 
 		open("/etc/ssh/sshd_config", 'w').write(conf)
 	except OSError as e: failure(e)
@@ -184,14 +183,22 @@ ufw enable
 
 
 def etc_permissions(): # a bunch of files have 644 perms but that's just 755 without execute access -- etc shouldn't have executables anyway
+	sys("chown -R root:root /etc")
 	sys("chmod -R 755 /etc")
 
+
+	sys("chown root:shadow /etc/gshadow")
+	sys("chown root:shadow /etc/gshadow-")
 
 	sys("chmod 640 /etc/gshadow")
 	sys("chmod 640 /etc/gshadow-")
 
+	sys("chown root:shadow /etc/shadow")
+	sys("chown root:shadow /etc/shadow-")
+
 	sys("chmod 640 /etc/shadow")
 	sys("chmod 640 /etc/shadow-")
+
 
 	sys("chmod 440 /etc/sudoers")
 	sys("chmod 444 /etc/machine-id")
@@ -337,7 +344,8 @@ module_lookup = {
 	"vsftpd": vsftpd_config,
 	"nginx": nginx_config,
 	"apache2": apache2_config,
-	"user-management": user_management
+	"user-management": user_management,
+	"apt-config": apt_config
 }
 
 for module in modules:

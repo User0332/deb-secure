@@ -1,4 +1,5 @@
 import os
+import re
 import secrets
 import glob
 import subprocess
@@ -11,6 +12,19 @@ def failure(msg: str):
 
 def warn(msg: str):
 	print(f"warning: module warned with {msg}")
+
+def set_config_variable(conf: str, name: str, value: str, sep: str=' ') -> str:
+	try:
+		commented = re.search(fr"^#\s{name}.*$", conf, re.MULTILINE).group()
+
+		return conf.replace(commented, f"{name}{sep}{value}")
+	except TypeError:
+		try:
+			var = re.search(fr"^{name}.*$", conf, re.MULTILINE).group()
+
+			return conf.replace(var, f"{name}{sep}{value}")
+		except TypeError:
+			return conf+f"\n\n{name}{sep}{value}"
 
 class _apt:
 	def __call__(self, cmd: str):
