@@ -12,7 +12,7 @@ from utils import (
 DEFAULT_MODULES: list[str] = [
 	"password-policy", # done -- has todos
 	"sshd", # done
-	"vsftpd",
+	"vsftpd", # done
 	"nginx",
 	"apache2",
 	"user-management", # done
@@ -236,7 +236,7 @@ def password_policy():
 			conf = conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
 
 			open("/etc/pam.d/common-password", 'w').write(conf)
-		except TypeError:
+		except (TypeError, AttributeError):
 			failure("cracklib did not make its way into common-password")
 
 	except OSError as e: failure(e)
@@ -299,7 +299,7 @@ sysctl -w net.ipv6.conf.all.disable_ipv6=1
 
 			conf = conf.replace(ip_forward, "net.ipv4.ip_forwarding=0")
 
-		except TypeError:
+		except AttributeError:
 			warn("net.ipv4.ip_forwarding variable not found in sysctl.conf")
 			conf+="\n\net.ipv4.ip_forwarding=0"
 

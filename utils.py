@@ -18,12 +18,12 @@ def set_config_variable(conf: str, name: str, value: str, sep: str=' ') -> str:
 		commented = re.search(fr"^#\s{name}.*$", conf, re.MULTILINE).group()
 
 		return conf.replace(commented, f"{name}{sep}{value}")
-	except TypeError:
+	except AttributeError:
 		try:
 			var = re.search(fr"^{name}.*$", conf, re.MULTILINE).group()
 
 			return conf.replace(var, f"{name}{sep}{value}")
-		except TypeError:
+		except AttributeError:
 			return conf+f"\n\n{name}{sep}{value}"
 
 class _apt:
