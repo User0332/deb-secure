@@ -35,7 +35,7 @@ def vsftpd_config():
 	conf = set_config_variable(conf, "anonymous_enable", "NO")
 	conf = set_config_variable(conf, "ssl_enable", "YES")
 
-	open("/etc/vsftpd.conf", 'w').read()
+	open("/etc/vsftpd.conf", 'w').write(conf)
 
 def nginx_config():
 	print("nginx auto-config not implemented yet")
@@ -48,7 +48,7 @@ def apache2_config():
 	conf = set_config_variable(conf, "Header", "always unset X-Powered-By")
 	conf = set_config_variable(conf, "TraceEnable", "Off")
 
-	open("/etc/apache2/apache2.conf", 'w').read()
+	open("/etc/apache2/apache2.conf", 'w').write(conf)
 
 def apt_config():
 	conf = open("/etc/apt/sources.list", 'r').read()
