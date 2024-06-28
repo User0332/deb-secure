@@ -4,19 +4,22 @@ import glob
 import subprocess
 
 def debug(msg: str):
-	print(f"DEBUG => {msg}")
+	print(f"debug: {msg}")
 
 def failure(msg: str):
-	debug(f"failed with {msg}")
+	print(f"error: failed on module with {msg}")
+
+def warn(msg: str):
+	print(f"warning: module warned with {msg}")
 
 class _apt:
 	def __call__(self, cmd: str):
 		try: return subprocess.call(["apt", *cmd.split()])
 		except OSError as e: failure(e)
 
-	def install(self, *packages: str): return [self(f"install -y {package}") for package in packages]
+	def install(self, *packages: str): return self(f"install -y {' '.join(packages)}")
 
-	def remove(self, *packages: str): return [self(f"remove -y {package}") for package in packages]
+	def remove(self, *packages: str): return self(f"remove -y {' '.join(packages)}")
 
 	def autoremove(self): return self("autoremove -y")
 	
@@ -26,7 +29,7 @@ class _apt:
 
 	def update(self): return self("update")
 
-	def upgrade(self): return self("upgrade")
+	def upgrade(self): return self("upgrade -y")
 
 def _sys(cmd: str, **kwargs):
 	try: return subprocess.call(cmd.split(), **kwargs)
