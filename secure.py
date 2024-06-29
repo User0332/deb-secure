@@ -79,8 +79,8 @@ def service_management(): # TODO: start stopped critical services
 
 def prohibited_files():
 	prohibited_files = (
-		glob.glob("**/*.mp3", root_dir="/home", recursive=True) + 
-		glob.glob("**/*.mp4", root_dir="/home", recursive=True)
+		glob.glob("/home/**/*.mp3", recursive=True) + 
+		glob.glob("/home/**/*.mp4", recursive=True)
 	)
 
 	print("found the following mp3 and mp4 files in /home (to remove, provide comma-sep list or 'all'): ")
@@ -88,7 +88,7 @@ def prohibited_files():
 	for i, mp3 in enumerate(prohibited_files):
 		print(f"{i}: {mp3}")
 
-	remove = input("choicpye: ")
+	remove = input("choice: ")
 
 	if not remove: return
 
