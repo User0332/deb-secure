@@ -61,7 +61,7 @@ class Log:
 def service_management(): # TODO: start stopped critical services
 	services = input("Enter a comma-separated list of critical services (no spaces) ").split(',')
 
-	running_services = [line.removeprefix(" [ + ]").split() for line in subprocess.check_output(["service", "--status-all"]).decode().splitlines() if line.startswith(" [ + ]")]
+	running_services = [line.removeprefix(" [ + ]").strip() for line in subprocess.check_output(["service", "--status-all"]).decode().splitlines() if line.startswith(" [ + ]")]
 
 	for servicename in REMOVE_IF_NOT_CRITICAL:
 		if servicename in running_services and servicename not in services:
@@ -72,7 +72,7 @@ def service_management(): # TODO: start stopped critical services
 
 	for servicename, packagename in REMOVE_IF_NOT_CRITICAL.items():
 		if servicename not in services:
-			if bool_input(f"Non-critical service package {packagename} found, remove? "):
+			if bool_input(f"Non-critical service package {packagename} may be installed, try to remove? "):
 				apt.remove(packagename)
 
 				Log.attempted_remove_packages.append(packagename)
