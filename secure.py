@@ -59,9 +59,9 @@ class Log:
 	firewall_rules: str = ""
 
 def service_management(): # TODO: start stopped critical services
-	services = input("Enter a comma-separated list of critical services (no spaces)").split(',')
+	services = input("Enter a comma-separated list of critical services (no spaces) ").split(',')
 
-	running_services = [line.removeprefix(" [ + ]").split() for line in subprocess.check_output(["service", "--status-all"]).splitlines() if line.startswith(" [ + ]")]
+	running_services = [line.removeprefix(" [ + ]").split() for line in subprocess.check_output(["service", "--status-all"]).decode().splitlines() if line.startswith(" [ + ]")]
 
 	for servicename in REMOVE_IF_NOT_CRITICAL:
 		if servicename in running_services and servicename not in services:
