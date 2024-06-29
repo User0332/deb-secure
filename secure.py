@@ -23,10 +23,10 @@ DEFAULT_MODULES: list[str] = [
 	"helpful-tools", # done
 	"etc-permissions", # done
 	"hardening-variables", # done - has todos
-	"upgrade-system", # done - see todos
 	"apt-config", # done
 	"prohibited-files", # done
 	"service_management", # done, see todos
+	"upgrade-system", # done - see todos
 ]
 
 REMOVE_IF_NOT_CRITICAL: dict[str, str] = {
@@ -99,8 +99,6 @@ def prohibited_files():
 		for idx in remove_idxs:
 			rmrf(prohibited_files[idx])
 			Log.removed_files.append(prohibited_files[idx])
-
-	
 
 def vsftpd_config():
 	sys("ufw allow ftp")
