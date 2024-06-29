@@ -263,8 +263,7 @@ def package_cleaner(): # remove bad packages
 	apt.remove(
 		"samba-common", "icecast2",
 		"zangband", "libpcap-dev", "ophcrack",
-		"hydra", "deluge", "wireshark",
-		"utorrent", "nmap", "avernum",
+		"hydra", "deluge", "wireshark", "nmap",
 		"manaplus", "ettercap", "ettercap-graphical", "zenmap",
 		"freeciv", "kismet-plugins",
 		"libnet-akismet-perl",
@@ -277,8 +276,7 @@ def package_cleaner(): # remove bad packages
 		[
 			"samba-common", "icecast2",
 			"zangband", "libpcap-dev", "ophcrack",
-			"hydra", "deluge", "wireshark",
-			"utorrent", "nmap", "avernum",
+			"hydra", "deluge", "wireshark", "nmap",
 			"manaplus", "ettercap", "ettercap-graphical", "zenmap",
 			"freeciv", "kismet-plugins",
 			"libnet-akismet-perl",
@@ -379,6 +377,9 @@ def password_policy():
 		
 		Log.passwd_changes+="common-auth: auth required pam_faillock.so deny=5 onerr=fail unlock_time=1800,removed nullok if present,"
 	except OSError as e: failure(e)
+
+	sys("passwd -dl root")
+	Log.passwd_changes+="root account: deleted root password and locked root account,"
 
 def hardening_variables():
 	sys(
@@ -537,7 +538,7 @@ for module in modules:
 with open("./secure.log", 'w') as f:
 	f.write(f"removed files: {', '.join(Log.removed_files)}\n")
 	f.write(f"attempted to remove packages: {', '.join(Log.attempted_remove_packages)}\n")
-	f.write(f"services stopped: {', '.join(Log.services_stopped)}")
+	f.write(f"services stopped: {', '.join(Log.services_stopped)}\n")
 	f.write(f"removed users: {', '.join(Log.removed_users)}\n")
 	f.write(f"std users: {', '.join(Log.std_users)}\n")
 	f.write(f"adm users: {', '.join(Log.adm_users)}\n")
