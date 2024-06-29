@@ -79,8 +79,8 @@ def service_management(): # TODO: start stopped critical services
 
 def prohibited_files():
 	prohibited_files = (
-		glob.glob("*.mp3", root_dir="/home", recursive=True) + 
-		glob.glob("*.mp4", root_dir="/home", recursive=True)
+		glob.glob("**/*.mp3", root_dir="/home", recursive=True) + 
+		glob.glob("**/*.mp4", root_dir="/home", recursive=True)
 	)
 
 	print("found the following mp3 and mp4 files in /home (to remove, provide comma-sep list or 'all'): ")
@@ -88,7 +88,9 @@ def prohibited_files():
 	for i, mp3 in enumerate(prohibited_files):
 		print(f"{i}: {mp3}")
 
-	remove = input("choice: ")
+	remove = input("choicpye: ")
+
+	if not remove: return
 
 	if remove == "all":
 		rmrf(prohibited_files)
@@ -551,5 +553,8 @@ with open("./secure.log", 'w') as f:
 	f.write(f"firewall rules set: {Log.firewall_rules}\n")
 	f.write(f"hardening variables set: {Log.hardening_variable_changes}\n")
 
+print("wrote to log file secure.log")
+
 # TODO: have the user input various services that are required
 # TODO: see old script file
+# TODO: log errors
