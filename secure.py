@@ -93,7 +93,7 @@ def prohibited_files():
 	if not remove: return
 
 	if remove == "all":
-		rmrf(prohibited_files)
+		rmrf(*prohibited_files)
 		Log.removed_files = prohibited_files
 	else:
 		remove_idxs = [int(idx) for idx in remove.split(',')]
