@@ -25,7 +25,7 @@ DEFAULT_MODULES: list[str] = [
 	"hardening-variables", # done - has todos
 	"apt-config", # done
 	"prohibited-files", # done
-	"service_management", # done, see todos
+	"service-management", # done, see todos
 	"upgrade-system", # done - see todos
 ]
 
