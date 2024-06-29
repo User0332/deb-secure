@@ -25,7 +25,16 @@ def set_config_variable(conf: str, name: str, value: str, sep: str=' ') -> str:
 			return conf.replace(var, f"{name}{sep}{value}")
 		except AttributeError:
 			return conf+f"\n\n{name}{sep}{value}"
+		
+def bool_input(prompt: str) -> bool:
+	while 1:
+		inp = input(prompt).lower()
 
+		if inp in ('y', "yes"): return True
+		if inp in ('n', "no"): return False
+
+		print("Invalid Input!")
+		
 class _apt:
 	def __call__(self, cmd: str):
 		try: return subprocess.call(["apt", *cmd.split()])
