@@ -67,7 +67,7 @@ def find(pattern: str, dir: str='/'):
 def rmrf(*paths: str):
 	"""Runs `rm -rf` instead of using `os.remove`"""
 
-	return [os.system(f"rm -rf {path}") for path in paths]
+	return [subprocess.call(["rm", "-rf", path]) for path in paths]
 
 def get_usertype_input(user):
 	while 1:
