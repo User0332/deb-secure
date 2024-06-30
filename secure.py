@@ -12,7 +12,7 @@ from utils import (
 )
 
 DEFAULT_MODULES: list[str] = [
-	"apt-config", # done
+	"apt-config", # done, this is first to ensure that all following modules can install the necessary packages
 	"password-policy", # done -- has todos
 	"firewall", # done -- maybe add more in the future?
 	"sshd", # done
@@ -210,7 +210,7 @@ deb http://security.ubuntu.com/ubuntu {OS_VERSION_NAME}-security multiverse
 deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-backports main restricted universe multiverse
 """
 
-	open("/etc/apt/sources.list", 'r').write(apt_sources)
+	open("/etc/apt/sources.list", 'w').write(apt_sources)
 
 			
 	Log.apt_changes+=f"changed sources.list to the following sources: {apt_sources},"
@@ -591,6 +591,8 @@ else:
 	for module in args.exclude:
 		if module not in DEFAULT_MODULES:
 			print(f"warning: module '{module}' doesn't exist, skipping exclude for '{module}'")
+
+print(f"detected OS: Ubuntu {OS_VERSION_NAME}")
 
 input(f"\n\ncontinuing with the following modules: {' '.join(modules)} {CONTINUE_PROMPT}")
 
