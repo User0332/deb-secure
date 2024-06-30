@@ -1,7 +1,6 @@
 
 import argparse
 import glob
-import os
 import pwd
 import re
 import getpass
@@ -13,6 +12,7 @@ from utils import (
 )
 
 DEFAULT_MODULES: list[str] = [
+	"apt-config", # done
 	"password-policy", # done -- has todos
 	"firewall", # done -- maybe add more in the future?
 	"sshd", # done
@@ -24,7 +24,6 @@ DEFAULT_MODULES: list[str] = [
 	"helpful-tools", # done
 	"etc-permissions", # done
 	"hardening-variables", # done - has todos
-	"apt-config", # done
 	"prohibited-files", # done
 	"service-management", # done, see todos
 	"upgrade-system", # done - see todos
@@ -81,6 +80,9 @@ class Log:
 	hardening_variable_changes: str = ""
 	etc_permissions_set: str = ""
 	firewall_rules: str = ""
+
+
+OS_VERSION_NAME: str = re.search("VERSION_CODENAME=(\w*)", open("/etc/os-release", 'r').read()).group(1)
 
 def service_management(): # TODO: start stopped critical services
 	services = input("Enter a comma-separated list of critical services (no spaces) ").split(',')
@@ -185,14 +187,33 @@ APT::Sandbox::Seccomp "1";
 
 	Log.apt_changes+="added config Unattended-Upgrade::Remove-Unused-Dependencies=true,Unattended-Upgrade::Remove-Unused-Kernel-Packages=true,"
 
-	sources = open("/etc/apt/sources.list", 'r').read()
+	apt_sources = f"""
+deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME} main restricted
 
-	if (re.search(r"#\sdeb http://security\.debian\.org/debian-security bookworm-security main contrib non-free non-free-firmware", sources) is not None) or ("deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" not in sources):
-		sources+="\n\ndeb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware"
+# Updates for main and restricted packages
+deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-updates main restricted
+
+# Universe repositories
+deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME} universe
+deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-updates universe
+
+# Multiverse repositories
+deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME} multiverse
+deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-updates multiverse
+
+# Security updates
+deb http://security.ubuntu.com/ubuntu {OS_VERSION_NAME}-security main restricted
+deb http://security.ubuntu.com/ubuntu {OS_VERSION_NAME}-security universe
+deb http://security.ubuntu.com/ubuntu {OS_VERSION_NAME}-security multiverse
+
+# Backports repository
+deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-backports main restricted universe multiverse
+"""
+
+	open("/etc/apt/sources.list", 'r').write(apt_sources)
+
 			
-		Log.apt_changes+="added source deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware,"
-
-	open("/etc/apt/sources.list", 'w').write(sources)
+	Log.apt_changes+=f"changed sources.list to the following sources: {apt_sources},"
 
 def sshd_config(): # TODO: use regex to make sure necessary lines are uncommented, add more, including keys for users
 	sys("ufw allow ssh")
