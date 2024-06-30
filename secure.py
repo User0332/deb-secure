@@ -210,10 +210,10 @@ deb http://security.ubuntu.com/ubuntu {OS_VERSION_NAME}-security multiverse
 deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-backports main restricted universe multiverse
 """
 
-	open("/etc/apt/sources.list", 'w').write(apt_sources)
+	open("/etc/apt/sources.list", 'a').write(apt_sources)
 
 			
-	Log.apt_changes+=f"changed sources.list to the following sources: {apt_sources},"
+	Log.apt_changes+=f"added the following sources to sources.list: {apt_sources},"
 
 def sshd_config(): # TODO: use regex to make sure necessary lines are uncommented, add more, including keys for users
 	sys("ufw allow ssh")
