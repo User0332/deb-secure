@@ -1,6 +1,7 @@
 
 import argparse
 import glob
+import os
 import pwd
 import re
 import getpass
@@ -155,14 +156,43 @@ def apache2_config():
 	Log.apache2_changes+="ServerTokens=Prod,ServerSignature=Off,Header=always unset X-Powered-By,TraceEnable=Off,"
 
 def apt_config():
-	conf = open("/etc/apt/sources.list", 'r').read()
+	custom_override_conf = """
+Acquire::http::AllowRedirect "false";
+APT::Get::AllowUnauthenticated "false";
+APT::Periodic::AutocleanInterval "7";
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Download-Upgradeable-Packages "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Install-Recommends "false";
+APT::Get::AutomaticRemove "true";
+APT::Install-Suggests "false";
+Acquire::AllowDowngradeToInsecureRepositories "false";
+Acquire::AllowInsecureRepositories "false";
+APT::Sandbox::Seccomp "1";
+"""
 
-	if (re.search(r"#\sdeb http://security\.debian\.org/debian-security bookworm-security main contrib non-free non-free-firmware", conf) is not None) or ("deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" not in conf):
-		conf+="\n\ndeb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware"
+	open("/etc/apt/apt.conf.d/97deb-secure", 'w').write(custom_override_conf)
+
+	Log.apt_changes+=f"added config {custom_override_conf},"
+
+	try: conf = open("/etc/apt/apt.conf.d/50unattended-upgrades", 'r').read()
+	except FileNotFoundError: conf = ""
+
+	conf = set_config_variable(conf, "Unattended-Upgrade::Remove-Unused-Dependencies", '"true";')
+	conf = set_config_variable(conf, "Unattended-Upgrade::Remove-Unused-Kernel-Packages", '"true";')
+
+	open("/etc/apt/apt.conf.d/50unattended-upgrades", 'w').write(conf)
+
+	Log.apt_changes+="added config Unattended-Upgrade::Remove-Unused-Dependencies=true,Unattended-Upgrade::Remove-Unused-Kernel-Packages=true,"
+
+	sources = open("/etc/apt/sources.list", 'r').read()
+
+	if (re.search(r"#\sdeb http://security\.debian\.org/debian-security bookworm-security main contrib non-free non-free-firmware", sources) is not None) or ("deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" not in sources):
+		sources+="\n\ndeb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware"
 			
 		Log.apt_changes+="added source deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware,"
 
-	open("/etc/apt/sources.list", 'w').write(conf)
+	open("/etc/apt/sources.list", 'w').write(sources)
 
 def sshd_config(): # TODO: use regex to make sure necessary lines are uncommented, add more, including keys for users
 	sys("ufw allow ssh")
