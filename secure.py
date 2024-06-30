@@ -37,6 +37,29 @@ REMOVE_IF_NOT_CRITICAL: dict[str, str] = {
 	"pure-ftpd": "pure-ftpd"
 }
 
+IGNORE_USERS: list[str] = [
+	"root",
+	"daemon",
+	"bin",
+	"sys",
+	"sync",
+	"games",
+	"man",
+	"lp",
+	"mail",
+	"news",
+	"uccp",
+	"proxy",
+	"www-data",
+	"backup",
+	"list",
+	"irc",
+	"gnats",
+	"nobody",
+	"systemd-network",
+	"systemd-resolve"
+]
+
 CONTINUE_PROMPT = "<enter to continue, CTRL-C at any time to exit> "
 
 class Log:
@@ -203,12 +226,22 @@ def user_management(): # TODO: uncomment SYS_UID_MIN/MAX
 	for user in pwd.getpwall():
 		name = user.pw_name
 
-		if min_sys_uid <= user.pw_uid <= max_sys_uid:
+		if name in IGNORE_USERS or (min_sys_uid <= user.pw_uid <= max_sys_uid):
 			print(f"ignoring known system user {name} by default, continuing")
 			continue
 
-		if name == getpass.getuser():
+		if name == getpass.getuser(): # redundant case because the script must be run as root
 			print(f"ignoring user {name} (self), continuing")
+			continue
+
+		if user.pw_uid == 0: # non-root uid 0 user, must delete
+			remove = bool_input(f"URGENT: non-root uid 0 user {name} found, remove? ")
+
+			if remove:
+				sys(f"deluser {name}")
+
+				Log.removed_users.append(name)
+
 			continue
 
 		user_type = get_usertype_input(name)
