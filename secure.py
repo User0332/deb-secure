@@ -13,6 +13,11 @@ from utils import (
 
 DEFAULT_MODULES: list[str] = [
 	"apt-config", # done, this is first to ensure that all following modules can install the necessary packages
+	"ctrl-alt-del", # done
+	"gsettings-and-gdm-config", # done
+	"usb-security", # done
+	"time-config", # done
+	"grub-config",
 	"password-policy", # done -- has todos
 	"firewall", # done -- maybe add more in the future?
 	"sshd", # done
@@ -22,10 +27,11 @@ DEFAULT_MODULES: list[str] = [
 	"user-management", # done
 	"package-cleaner", # done
 	"helpful-tools", # done
-	"etc-permissions", # done
-	"hardening-variables", # done - has todos
+	"file-permissions", # done
+	"kernel-harden", # done - has todos
 	"prohibited-files", # done
 	"service-management", # done, see todos
+	"encrypt-partitions", 
 	"upgrade-system", # done - see todos
 ]
 
@@ -78,11 +84,46 @@ class Log:
 	apache2_changes: str = ""
 	passwd_changes: str = ""
 	hardening_variable_changes: str = ""
-	etc_permissions_set: str = ""
+	file_permissions_set: str = ""
 	firewall_rules: str = ""
-
+	ctrl_alt_del_disabled: bool
 
 OS_VERSION_NAME: str = re.search("VERSION_CODENAME=(\w*)", open("/etc/os-release", 'r').read()).group(1)
+
+def usb_security(): # TODO: log
+	open("/etc/modprobe.d/deb-secure.conf", 'w').write("install usb-storage /bin/false\nblacklist usb-storage")
+
+def gsettings_and_gdm_config(): # TODO: log
+	apt.install("dconf-cli")
+
+	sys("gsettings set org.gnome.desktop.screensaver lock-enabled true")
+	sys("gsettings set org.gnome.desktop.screensaver lock-delay 0")
+	sys("gsettings set org.gnome.desktop.session idle-delay 900")
+	sys("gsettings set org.gnome.settings-daemon.plugins.media-keys logout []")
+	sys("dconf update")
+
+def time_config(): # TODO: V-260519, V-260520, V-260521
+	apt.install("chrony")
+
+	sys("dpkg -P --force-all systemd-timesyncd")
+	sys("dpkg -P --force-all ntp")
+
+	Log.tools_installed.append("chrony")
+	Log.attempted_remove_packages.extend(("systemd-timesyncd", "ntp"))
+
+def encrypt_partitions(): # TODO: V-260484
+	pass
+
+
+def grub_config(): # TODO: V-260470, V-260471
+	pass
+
+def disable_ctrl_alt_del():
+	sys("systemctl disable ctrl-alt-del.target")
+	sys("systemctl mask ctrl-alt-del.target")
+	sys("systemctl daemon-reload")
+
+	Log.ctrl_alt_del_disabled = False
 
 def service_management(): # TODO: start stopped critical services
 	services = input("Enter a comma-separated list of critical services (no spaces) ").split(',')
@@ -226,25 +267,31 @@ def sshd_config(): # TODO: use regex to make sure necessary lines are uncommente
 
 		conf = set_config_variable(conf, "PermitRootLogin", "no")
 		conf = set_config_variable(conf, "PermitEmptyPasswords", "no")
+		conf = set_config_variable(conf, "PermitUserEnvironment", "no")
 		conf = set_config_variable(conf, "PermitTunnel", "no")
+		conf = set_config_variable(conf, "PubkeyAuthentication", "yes")
 		conf = set_config_variable(conf, "PasswordAuthentication", "no")
 		conf = set_config_variable(conf, "X11Forwarding", "no")
+		conf = set_config_variable(conf, "X11UseLocalhost", "yes")
 		conf = set_config_variable(conf, "AllowTcpForwarding", "no")
 		conf = set_config_variable(conf, "AllowAgentForwarding", "no")
 		conf = set_config_variable(conf, "DebianBanner", "no")
 		conf = set_config_variable(conf, "UsePAM", "yes")
 		conf = set_config_variable(conf, "IgnoreRhosts", "yes")
 		conf = set_config_variable(conf, "MaxAuthTries", '5')
-		conf = set_config_variable(conf, "Ciphers", "aes128-ctr,aes192-ctr,aes256-ctr")
-		conf = set_config_variable(conf, "ClientAliveInterval", "900")
-		conf = set_config_variable(conf, "ClientAliveCountMax", '0')
+		conf = set_config_variable(conf, "Ciphers", "aes256-ctr,aes256-gcm@openssh.com,aes192-ctr,aes128-ctr,aes128-gcm@openssh.com")
+		conf = set_config_variable(conf, "ClientAliveInterval", "600")
+		conf = set_config_variable(conf, "ClientAliveCountMax", '1')
+		conf = set_config_variable(conf, "MACs", "hmac-sha2-512,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-256-etm@openssh.com")
+		conf = set_config_variable(conf, "KexAlgorithms", "ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256")
 
 		open("/etc/ssh/sshd_config", 'w').write(conf)
 
 		Log.sshd_changes+=(
-			"PermitRootLogin=no,PermitEmptyPasswords=no,PermitTunnel=no,PasswordAuthentication=no,X11Forwarding=no,AllowTcpForwarding=no" 
-			"AllowAgentForwarding=no,DebianBanner=no,UsePAM=yes,IgnoreRhosts=yes,MaxAuthTries=5,Ciphers=aes128-ctr,aes192-ctr,aes256-ctr,ClientAliveInterval=900"
-			"ClientAliveCountMax=0,"
+			"PermitRootLogin=no,PermitEmptyPasswords=no,PermitUserEnvironment=no,PermitTunnel=no,PasswordAuthentication=no,X11Forwarding=no,AllowTcpForwarding=no" 
+			"AllowAgentForwarding=no,DebianBanner=no,UsePAM=yes,IgnoreRhosts=yes,MaxAuthTries=5,Ciphers=aes256-ctr,aes256-gcm@openssh.com,aes192-ctr,aes128-ctr,aes128-gcm@openssh.com,ClientAliveInterval=600"
+			"ClientAliveCountMax=1,X11UseLocalhost=yes,MACs=hmac-sha2-512,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-256-etm@openssh.com,KexAlgorithms=ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,"
+			""
 		)
 
 	except OSError as e: failure(e)
@@ -252,6 +299,8 @@ def sshd_config(): # TODO: use regex to make sure necessary lines are uncommente
 	sys("systemctl restart ssh")
 
 def user_management(): # TODO: uncomment SYS_UID_MIN/MAX
+	sys("useradd -D -f 35") # disable inactive accounts after 35 days, TODO: log
+
 	try:
 		conf = open("/etc/login.defs", 'r').read()
 
@@ -351,7 +400,8 @@ def package_cleaner(): # remove bad packages
 		"manaplus", "ettercap", "ettercap-graphical", "zenmap",
 		"freeciv", "kismet-plugins",
 		"libnet-akismet-perl",
-		"ruby-akismet", "gameconqueror", "telnet"
+		"ruby-akismet", "gameconqueror", "telnetd",
+		"rsh-server"
 	)
 
 	apt.autoremove()
@@ -364,7 +414,8 @@ def package_cleaner(): # remove bad packages
 			"manaplus", "ettercap", "ettercap-graphical", "zenmap",
 			"freeciv", "kismet-plugins",
 			"libnet-akismet-perl",
-			"ruby-akismet", "gameconqueror", "telnet"
+			"ruby-akismet", "gameconqueror", "telnetd",
+			"rsh-server"
 		]
 	)
 
@@ -373,7 +424,7 @@ def upgrade_system(): # TODO: maybe change /etc/apt/sources.list to see if neces
 	apt.upgrade()
 
 
-def firewall():
+def firewall(): # TODO: on this & other service configs RATE LIMIT - V-260517
 	apt.install("ufw")
 
 	sys(
@@ -386,7 +437,7 @@ ufw enable
 	Log.firewall_rules+="default reject incoming,default allow outgoing"
 
 
-def etc_permissions(): # a bunch of files have 644 perms but that's just 755 without execute access -- etc shouldn't have executables anyway
+def file_permissions(): # TODO: V-260489, V-260490, V-260491
 	sys("chown -R root:root /etc")
 	sys("chmod -R 755 /etc")
 
@@ -407,11 +458,26 @@ def etc_permissions(): # a bunch of files have 644 perms but that's just 755 wit
 	sys("chmod 440 /etc/sudoers")
 	sys("chmod 444 /etc/machine-id")
 
-	Log.etc_permissions_set+="/etc - [recursive] 755 root:root,/etc/shadow* - 640 root:shadow,/etc/gshadow* - 640 root:shadow,/etc/sudoers - 440 root:root,/etc/machine-id - 440 root:root,"
+	Log.file_permissions_set+="/etc - [recursive] 755 root:root,/etc/shadow* - 640 root:shadow,/etc/gshadow* - 640 root:shadow,/etc/sudoers - 440 root:root,/etc/machine-id - 440 root:root,"
 
+	sys("chown -R root:root /usr/sbin /usr/bin /usr/local/bin /usr/local/sbin /lib /lib64 /usr/lib")
+	sys("chmod -R 755 /usr/sbin /usr/bin /usr/local/bin /usr/local/sbin /lib /lib64 /usr/lib")
 
-def password_policy():
-	apt.install("libpam-cracklib")
+	Log.file_permissions_set+="/usr/**/*bin /lib* /usr/lib [recursive] 755 root:root,"
+
+	sys("chown root:syslog /var/log")
+	sys("chmod 755 /var/log")
+
+	Log.file_permissions_set+="/var/log root:syslog 755,"
+
+	sys("chmod 740 /usr/bin/journalctl")
+
+	Log.file_permissions_set="/usr/bin/journalctl root:root 740,"
+
+def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573), TODO: fix logging for all
+	# TODO: tmpdir config (should it be session required or session optional?)
+	apt.install("libpam-tmpdir")
+	# 
 
 	try:
 		conf = open("/etc/login.defs", 'r').read()
@@ -431,41 +497,128 @@ def password_policy():
 		Log.passwd_changes+="login.defs: max_days=90,min_days=7,warn_age=14,encrypt_method=sha512,"
 	except OSError as e: failure(e)
 
-	## TODO: ENSURE THAT THESE PAM CONFIGS ARE CORRECT
+	if OS_VERSION_NAME == "bionic":
+		apt.install("libpam-cracklib", "libpam-modules") 
 
-	try:
-		conf = open("/etc/pam.d/common-password", 'r').read()
+		Log.tools_installed.extend(("libpam-cracklib", "libpam-modules"))
 
 		try:
-			pam_unix = re.search(r"pam_unix\.so.*$", conf, re.MULTILINE).group()
-			cracklib = re.search(r"pam_cracklib\.so.*$", conf, re.MULTILINE).group()
+			conf = open("/etc/pam.d/common-password", 'r').read()
 
-			conf = conf.replace(pam_unix, f"{pam_unix} remember=5 minlen=8")
-			conf = conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
+			try:
+				pam_unix = re.search(r"^.*\[success=1 default=ignore\]\s*pam_unix\.so.*$", conf, re.MULTILINE).group()
+				cracklib = re.search(r"pam_cracklib\.so.*$", conf, re.MULTILINE).group()
+
+				conf = conf.replace(pam_unix, f"password [success=1 default=ignore] pam_unix.so obscure sha512 shadow remember=5 rounds=5000")
+				conf = conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
+
+				conf = conf.replace("nullok", '')
+
+				open("/etc/pam.d/common-password", 'w').write(conf)
+
+				Log.passwd_changes+="common-password: ... pam_unix.so ... remember=5 minlen=8, ... pam_cracklib.so ... ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1,"
+			except (TypeError, AttributeError):
+				failure("cracklib did not make its way into common-password")
+		except OSError as e: failure(e)
+
+		try:
+			conf = open("/etc/pam.d/common-password", 'r').read()
+
+			try:
+				pam_tally2 = re.search(r"pam_tally2\.so.*$", conf, re.MULTILINE).group()
+
+				conf = conf.replace(pam_tally2, f"{pam_tally2} deny=5 unlock_time=1800")
+
+			except (TypeError, AttributeError):
+				conf+="\n\nauth required pam_tally2.so onerr=fail deny=5 unlock_time=1800"
 
 			open("/etc/pam.d/common-password", 'w').write(conf)
 
-			Log.passwd_changes+="common-password: ... pam_unix.so ... remember=5 minlen=8, ... pam_cracklib.so ... ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1,"
-		except (TypeError, AttributeError):
-			failure("cracklib did not make its way into common-password")
+			Log.passwd_changes+="common-auth: ... pam_tally2.so onerr=fail deny=5 unlock_time=1800"
+		except OSError as e: failure(e)		
+	else:
+		apt.install("libpam-pwquality", "libpam-fail2ban", "libpam-modules")
 
-	except OSError as e: failure(e)
+		Log.tools_installed.extend(("libpam-pwquality", "libpam-fail2ban", "libpam-modules"))
 
-	try:
-		open("/etc/pam.d/common-auth", 'a') \
-			.write("\n\nauth required pam_faillock.so deny=5 onerr=fail unlock_time=1800")
+		try:
+			pwquality_conf = open("/etc/security/pwquality.conf", 'r').read()
+
+			pwquality_conf = set_config_variable(pwquality_conf, "ucredit", "-1", sep=" = ")
+			pwquality_conf = set_config_variable(pwquality_conf, "lcredit", "-1", sep=" = ")
+			pwquality_conf = set_config_variable(pwquality_conf, "dcredit", "-1", sep=" = ")
+			pwquality_conf = set_config_variable(pwquality_conf, "ocredit", "-1", sep=" = ")
+			pwquality_conf = set_config_variable(pwquality_conf, "dictcheck", '1', sep=" = ")
+			pwquality_conf = set_config_variable(pwquality_conf, "enforcing", '1', sep=" = ")
+			pwquality_conf = set_config_variable(pwquality_conf, "difok", '8', sep=" = ")
+			pwquality_conf = set_config_variable(pwquality_conf, "minlen", "15", sep=" = ")
+
+			open("/etc/security/pwquality.conf", 'w').write(pwquality_conf)
+
+
+			faillock_conf = open("/etc/security/faillock.conf", 'r').read()
+
+			faillock_conf = set_config_variable(faillock_conf, "audit", '', sep='')
+			faillock_conf = set_config_variable(faillock_conf, "silent", '', sep='')
+			faillock_conf = set_config_variable(faillock_conf, "deny", '3', sep=" = ")
+			faillock_conf = set_config_variable(faillock_conf, "fail_interval", "900", sep=" = ")
+			faillock_conf = set_config_variable(faillock_conf, "unlock_time", '0', sep=" = ")
+
+			open("/etc/security/faillock.conf", 'w').write(faillock_conf)
+
+
+			auth_conf = open("/etc/pam.d/common-auth", 'r').read()
+
+			for line in re.finditer(r"^.*pam_faillock\.so.*$", auth_conf, re.MULTILINE):
+				auth_conf = auth_conf.replace(line.group(), '')
+
+			try:
+				pam_unix = re.search(r"^.*pam_unix\.so.*$", auth_conf, re.MULTILINE).group()
+
+				auth_conf = auth_conf.replace(pam_unix, f"{pam_unix}\n\nauth     [default=die]  pam_faillock.so authfail\nauth     sufficient          pam_faillock.so authsucc\n")
+			
+				pam_faildelay = re.search(r"^.*pam_faildelay\.so.*$", auth_conf, re.MULTILINE).group()
+
+				auth_conf = auth_conf.replace(pam_faildelay, f"auth     required     pam_faildelay.so     delay=4000000")
+			except AttributeError:
+				failure("pam_unix or pam_faildelay line doesn't exist in common-auth")
+
+			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
+
+
+			login_conf = open("/etc/pam.d/login", 'r').read()
+
+			try:
+				pam_lastlog = re.search(r"^.*pam_lastlog\.so.*$", login_conf, re.MULTILINE).group()
+
+				login_conf = login_conf.replace(pam_lastlog, f"session     required     pam_lastlog.so     showfailed")
+			except AttributeError:
+				failure("pam_lastlog line doesn't exist in login")
+
+			open("/etc/pam.d/login", 'w').write(login_conf)
+
+			passwd_conf = open("/etc/pam.d/common-password", 'r').read()
 		
-		data = open("/etc/pam.d/common-auth", 'r').read()
+			try:
+				pam_pwquality = re.search(r"^.*pam_pwqality\.so.*$", passwd_conf, re.MULTILINE).group()
+				pam_unix = re.search(r"^.*\[success=1 default=ignore\]\s*pam_unix\.so.*$", conf, re.MULTILINE).group()
 
-		open("/etc/pam.d/common-auth", 'w').write(data.replace("nullok", ''))
-		
-		Log.passwd_changes+="common-auth: auth required pam_faillock.so deny=5 onerr=fail unlock_time=1800,removed nullok if present,"
-	except OSError as e: failure(e)
+				passwd_conf = passwd_conf.replace(pam_pwquality, f"password requisite pam_pwquality.so retry=3")
+				passwd_conf = passwd_conf.replace(pam_unix, f"password [success=1 default=ignore] pam_unix.so obscure sha512 shadow remember=5 rounds=5000")
+			
+				passwd_conf = passwd_conf.replace("nullok", '')
+			except AttributeError:
+				failure("pam_pwquality or pam_unix line doesn't exist in common-password")
+
+			open("/etc/pam.d/common-password", 'w').write(passwd_conf)
+		except OSError as e: failure(e)
+
+	# FOR ALL VERSIONS
 
 	sys("passwd -dl root")
 	Log.passwd_changes+="root account: deleted root password and locked root account,"
 
-def hardening_variables():
+def kernel_harden():
 	sys(
 """
 sysctl -w  dev.tty.ldisc_autoload=0
@@ -569,6 +722,9 @@ net.ipv6.conf.all.disable_ipv6=1
 
 	except OSError as e: failure(e)
 
+	sys("systemctl disable kdump") # TODO: check if works on fresh VM
+	sys("systemctl mask kdump")
+
 
 parser = argparse.ArgumentParser(description="Secure Debian-Based Systems", prog="secure")
 
@@ -601,17 +757,23 @@ module_lookup = {
 	"package-cleaner": package_cleaner,
 	"helpful-tools": helpful_tools,
 	"upgrade-system": upgrade_system,
-	"hardening-variables": hardening_variables,
-	"etc-permissions": etc_permissions,
+	"kernel-variables": kernel_harden,
+	"file-permissions": file_permissions,
 	"firewall": firewall,
 	"sshd": sshd_config,
 	"vsftpd": vsftpd_config,
 	"nginx": nginx_config,
 	"apache2": apache2_config,
+	"grub-config": grub_config,
 	"user-management": user_management,
 	"apt-config": apt_config,
 	"prohibited-files": prohibited_files,
-	"service-management": service_management
+	"service-management": service_management,
+	"ctrl-alt-del": disable_ctrl_alt_del,
+	"time-config": time_config,
+	"encrypt-partitions": encrypt_partitions,
+	"gsettings-and-gdm-config": gsettings_and_gdm_config,
+	"usb-security": usb_security
 }
 
 for module in modules:
@@ -636,9 +798,10 @@ with open("./secure.log", 'w') as f:
 	f.write(f"apt changes: {Log.apt_changes}\n")
 	f.write(f"apache2 changes: {Log.apache2_changes}\n")
 	f.write(f"password policy changes: {Log.passwd_changes}\n")
-	f.write(f"etc permissions set: {Log.etc_permissions_set}\n")
+	f.write(f"file permissions set: {Log.file_permissions_set}\n")
 	f.write(f"firewall rules set: {Log.firewall_rules}\n")
 	f.write(f"hardening variables set: {Log.hardening_variable_changes}\n")
+	if Log.ctrl_alt_del_disabled: f.write(f"CTRL-ALT-DEL disabled\n")
 
 print("wrote to log file secure.log")
 

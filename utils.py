@@ -13,6 +13,12 @@ def failure(msg: str):
 def warn(msg: str):
 	print(f"warning: module warned with {msg}")
 
+def comment_all_of_pattern(conf: str, pattern: str) -> str:
+	for match in re.finditer(fr"^{pattern}$", conf, re.MULTILINE):
+		conf = conf.replace(match.group(), f"# {match.group()}")
+
+	return conf
+
 def set_config_variable(conf: str, name: str, value: str, sep: str=' ') -> str:
 	try:
 		commented = re.search(fr"^#\s{name}.*$", conf, re.MULTILINE).group()
