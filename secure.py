@@ -68,6 +68,8 @@ IGNORE_USERS: list[str] = [
 
 CONTINUE_PROMPT = "<enter to continue, CTRL-C at any time to exit> "
 
+SSH_NONDEFAULT_PORT = 4097
+
 class Log:
 	removed_files: list[str] = []
 	attempted_remove_packages: list[str] = []
@@ -86,7 +88,7 @@ class Log:
 	hardening_variable_changes: str = ""
 	file_permissions_set: str = ""
 	firewall_rules: str = ""
-	ctrl_alt_del_disabled: bool
+	ctrl_alt_del_disabled: bool = False
 
 OS_VERSION_NAME: str = re.search("VERSION_CODENAME=(\w*)", open("/etc/os-release", 'r').read()).group(1)
 
@@ -257,7 +259,7 @@ deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-backports main restricte
 	Log.apt_changes+=f"added the following sources to sources.list: {apt_sources},"
 
 def sshd_config(): # TODO: use regex to make sure necessary lines are uncommented, add more, including keys for users
-	sys("ufw allow ssh")
+	sys(f"ufw allow {SSH_NONDEFAULT_PORT}")
 	sys("ufw reload")
 
 	Log.firewall_rules+="allow ssh,"
@@ -265,6 +267,8 @@ def sshd_config(): # TODO: use regex to make sure necessary lines are uncommente
 	try:
 		conf = open("/etc/ssh/sshd_config", 'r').read()
 
+		conf = set_config_variable(conf, "Port", str(SSH_NONDEFAULT_PORT))
+		conf = set_config_variable(conf, "LoginGraceTime", "20")
 		conf = set_config_variable(conf, "PermitRootLogin", "no")
 		conf = set_config_variable(conf, "PermitEmptyPasswords", "no")
 		conf = set_config_variable(conf, "PermitUserEnvironment", "no")
@@ -278,9 +282,10 @@ def sshd_config(): # TODO: use regex to make sure necessary lines are uncommente
 		conf = set_config_variable(conf, "DebianBanner", "no")
 		conf = set_config_variable(conf, "UsePAM", "yes")
 		conf = set_config_variable(conf, "IgnoreRhosts", "yes")
-		conf = set_config_variable(conf, "MaxAuthTries", '5')
+		conf = set_config_variable(conf, "MaxAuthTries", '3')
+		conf = set_config_variable(conf, "MaxSessions", '5')
 		conf = set_config_variable(conf, "Ciphers", "aes256-ctr,aes256-gcm@openssh.com,aes192-ctr,aes128-ctr,aes128-gcm@openssh.com")
-		conf = set_config_variable(conf, "ClientAliveInterval", "600")
+		conf = set_config_variable(conf, "ClientAliveInterval", "60")
 		conf = set_config_variable(conf, "ClientAliveCountMax", '1')
 		conf = set_config_variable(conf, "MACs", "hmac-sha2-512,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-256-etm@openssh.com")
 		conf = set_config_variable(conf, "KexAlgorithms", "ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256")
@@ -463,7 +468,10 @@ def file_permissions(): # TODO: V-260489, V-260490, V-260491
 	sys("chown -R root:root /usr/sbin /usr/bin /usr/local/bin /usr/local/sbin /lib /lib64 /usr/lib")
 	sys("chmod -R 755 /usr/sbin /usr/bin /usr/local/bin /usr/local/sbin /lib /lib64 /usr/lib")
 
-	Log.file_permissions_set+="/usr/**/*bin /lib* /usr/lib [recursive] 755 root:root,"
+	sys("chmod 4755 /usr/bin/sudo")
+	sys("chmod 4755 /usr/bin/pkexec")
+
+	Log.file_permissions_set+="/usr/**/*bin /lib* /usr/lib [recursive] 755 root:root,/usr/bin/sudo 4755 root:root,/usr/bin/pkexec 4755 root:root"
 
 	sys("chown root:syslog /var/log")
 	sys("chmod 755 /var/log")
@@ -482,15 +490,12 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 	try:
 		conf = open("/etc/login.defs", 'r').read()
 
-		max_days = re.search(r"^PASS_MAX_DAYS.*$", conf, re.MULTILINE).group()
-		min_days = re.search(r"^PASS_MIN_DAYS.*$", conf, re.MULTILINE).group()
-		warn_days = re.search(r"^PASS_WARN_AGE.*$", conf, re.MULTILINE).group()
-		encrypt_method = re.search(r"^ENCRYPT_METHOD.*$", conf, re.MULTILINE).group()
+		conf = set_config_variable(conf, "PASS_MAX_DAYS", "90")
+		conf = set_config_variable(conf, "PASS_MIN_DAYS", '7')
+		conf = set_config_variable(conf, "PASS_WARN_DAYS", "14")
+		conf = set_config_variable(conf, "ENCRYPT_METHOD", "SHA512")
+		conf = set_config_variable(conf, "UMASK", "077")
 
-		conf = conf.replace(max_days, "PASS_MAX_DAYS\t90")
-		conf = conf.replace(min_days, "PASS_MIN_DAYS\t7")
-		conf = conf.replace(warn_days, "PASS_WARN_AGE\t14")
-		conf = conf.replace(encrypt_method, "ENCRYPT_METHOD SHA512")
 
 		open("/etc/login.defs", 'w').write(conf)
 
@@ -617,6 +622,9 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 	sys("passwd -dl root")
 	Log.passwd_changes+="root account: deleted root password and locked root account,"
+
+	sys("pam-auth-update --force")
+	sys("pam-auth-update --force")
 
 def kernel_harden():
 	sys(
@@ -757,7 +765,7 @@ module_lookup = {
 	"package-cleaner": package_cleaner,
 	"helpful-tools": helpful_tools,
 	"upgrade-system": upgrade_system,
-	"kernel-variables": kernel_harden,
+	"kernel-harden": kernel_harden,
 	"file-permissions": file_permissions,
 	"firewall": firewall,
 	"sshd": sshd_config,
