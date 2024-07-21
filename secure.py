@@ -303,7 +303,7 @@ def sshd_config(): # TODO: use regex to make sure necessary lines are uncommente
 	
 	sys("systemctl restart ssh")
 
-def user_management(): # TODO: uncomment SYS_UID_MIN/MAX
+def user_management():
 	sys("useradd -D -f 35") # disable inactive accounts after 35 days, TODO: log
 
 	try:
@@ -527,7 +527,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 		except OSError as e: failure(e)
 
 		try:
-			conf = open("/etc/pam.d/common-password", 'r').read()
+			conf = open("/etc/pam.d/common-auth", 'r').read()
 
 			try:
 				pam_tally2 = re.search(r"pam_tally2\.so.*$", conf, re.MULTILINE).group()
@@ -537,7 +537,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 			except (TypeError, AttributeError):
 				conf+="\n\nauth required pam_tally2.so onerr=fail deny=5 unlock_time=1800"
 
-			open("/etc/pam.d/common-password", 'w').write(conf)
+			open("/etc/pam.d/common-auth", 'w').write(conf)
 
 			Log.passwd_changes+="common-auth: ... pam_tally2.so onerr=fail deny=5 unlock_time=1800"
 		except OSError as e: failure(e)		
@@ -667,6 +667,8 @@ sysctl -w  net.ipv6.conf.all.accept_source_route=0
 sysctl -w  net.ipv6.conf.default.accept_redirects=0
 sysctl -w  net.ipv6.conf.default.accept_source_route=0
 sysctl -w  net.ipv6.conf.all.disable_ipv6=1
+sysctl -w  net.ipv4.tcp_rfc1337=1
+sysctl -w  net.ipv4.ip_forward=0
 """)
 	
 	Log.hardening_variable_changes+="""
@@ -708,27 +710,9 @@ net.ipv6.conf.all.accept_source_route=0
 net.ipv6.conf.default.accept_redirects=0
 net.ipv6.conf.default.accept_source_route=0
 net.ipv6.conf.all.disable_ipv6=1
+net.ipv4.tcp_rfc1337=1
+net.ipv4.ip_forward=0
 """
-
-	# for some reason net.ipv4.ip_forwarding=0 errors all the time (TODO: look into this) so we'll write it in the config for now
-
-	try:
-		conf = open("/etc/sysctl.conf", 'r').read()
-
-		try:
-			ip_forward = re.search(r"^net\.ipv4\.ip_forwarding=.*$", conf, re.MULTILINE).group()
-
-			conf = conf.replace(ip_forward, "net.ipv4.ip_forwarding=0")
-
-		except AttributeError:
-			warn("net.ipv4.ip_forwarding variable not found in sysctl.conf")
-			conf+="\n\net.ipv4.ip_forwarding=0"
-
-		open("/etc/sysctl.conf", 'w').write(conf)
-
-		Log.hardening_variable_changes+="net.ipv4.ip_forwarding=0\n"
-
-	except OSError as e: failure(e)
 
 	sys("systemctl disable kdump") # TODO: check if works on fresh VM
 	sys("systemctl mask kdump")
