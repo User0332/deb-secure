@@ -474,9 +474,9 @@ def file_permissions(): # TODO: V-260489, V-260490, V-260491
 	Log.file_permissions_set+="/usr/**/*bin /lib* /usr/lib [recursive] 755 root:root,/usr/bin/sudo 4755 root:root,/usr/bin/pkexec 4755 root:root"
 
 	sys("chown root:syslog /var/log")
-	sys("chmod 755 /var/log")
+	sys("chmod 750 /var/log")
 
-	Log.file_permissions_set+="/var/log root:syslog 755,"
+	Log.file_permissions_set+="/var/log root:syslog 750,"
 
 	sys("chmod 740 /usr/bin/journalctl")
 
@@ -723,6 +723,7 @@ parser = argparse.ArgumentParser(description="Secure Debian-Based Systems", prog
 flaggroup = parser.add_mutually_exclusive_group(required=True)
 flaggroup.add_argument("-i", "--include", nargs='*', default=[])
 flaggroup.add_argument("-e", "--exclude", nargs='*', default=[])
+flaggroup.add_argument("-l", "--list", action="store_true")
 
 args = parser.parse_args()
 
@@ -733,12 +734,17 @@ if args.include:
 		if module not in DEFAULT_MODULES:
 			print(f"error: module '{module}' not available")
 			exit(1)
-else:
+elif args.exclude:
 	modules = [item for item in DEFAULT_MODULES if item not in args.exclude]
 
 	for module in args.exclude:
 		if module not in DEFAULT_MODULES:
 			print(f"warning: module '{module}' doesn't exist, skipping exclude for '{module}'")
+else:
+	for module in DEFAULT_MODULES:
+		print(module)
+
+	exit(0)
 
 print(f"detected OS: Ubuntu {OS_VERSION_NAME}")
 
