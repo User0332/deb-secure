@@ -99,4 +99,10 @@ def generate_passwd(user: str):
 
 	return passwd, file
 
+def removeprefix_compat(string: str, prefix: str):
+	if string.startswith(prefix):
+		return string[len(prefix):]
+	
+	return string
+
 apt = _apt()

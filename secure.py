@@ -2,13 +2,14 @@ import argparse
 import glob
 import pwd
 import fcntl
+import grp
 import struct
 import re
 import os
 import getpass
 import subprocess
 from utils import (
-	apt, bool_input, rmrf, set_config_variable, sys, _sys,
+	apt, bool_input, removeprefix_compat, rmrf, set_config_variable, sys, _sys,
 	warn, failure,
 	get_usertype_input
 )
@@ -24,7 +25,7 @@ DEFAULT_MODULES: list[str] = [
 	"ctrl-alt-del", # done
 	"gsettings-and-gdm-config", # done
 	"usb-security", # done
-	"time-config", # done
+	# "time-config", # done
 	"grub-config",
 	"password-policy", # done -- has todos
 	"firewall", # done -- maybe add more in the future?
@@ -39,6 +40,7 @@ DEFAULT_MODULES: list[str] = [
 	"kernel-harden", # done - has todos
 	"prohibited-files", # done
 	"service-management", # done, see todos
+	"file-attributes", # done
 	"encrypt-partitions", 
 	"upgrade-system", # done - see todos
 ]
@@ -101,29 +103,42 @@ class Log:
 
 OS_VERSION_NAME: str = re.search("VERSION_CODENAME=(\w*)", open("/etc/os-release", 'r').read()).group(1)
 
-def get_file_flags(filepath):
-	with open(filepath, 'rb') as f:
-		flags = struct.unpack('I', fcntl.ioctl(f, FS_IOC_GETFLAGS, struct.pack('I', 0)))[0]
-	return flags
+def get_file_flags(filename: str) -> int:
+	return struct.unpack(
+		'I',
+		fcntl.ioctl(
+			open(filename, "rb"), 
+			FS_IOC_GETFLAGS, 
+			struct.pack('I', 0)
+		)
+	)[0]
 
-def set_file_flags(filepath, flags):
-	with open(filepath, 'rb+') as f:
-		fcntl.ioctl(f, FS_IOC_SETFLAGS, struct.pack('I', flags))
+def set_file_flags(filename: str, flags: int):
+	fcntl.ioctl(
+		open(filename, "wb"),
+		FS_IOC_SETFLAGS,
+		struct.pack('I', flags)
+	)
 
-def remove_immutable_flags(directory: str):
+def file_attributes(directory: str):
 	for root, dirs, files in os.walk(directory):
 		for name in files:
 			filepath = os.path.join(root, name)
 			try:
 				flags = get_file_flags(filepath)
-				new_flags = flags & 
-				if flags != new_flags:
-					set_file_flags(filepath, new_flags)
-					removed_flags = []
+
+				if flags != FS_EXTENT_FL:
 					if flags & FS_IMMUTABLE_FL:
-						removed_flags.append('immutable')
-					if flags & FS_APPEND_FL:
-						removed_flags.append('append-only')
+						warn(f"{filepath} has FS_IMMUTABLE set")
+
+					sys("chattr")
+					print(f"note: {filepath}'s attrs above")
+					set_to_extent = bool_input(f"WARNING: {filepath}'s attributes are not [FS_EXTENT], set to [FS_EXTENT] ?")
+
+					if set_to_extent:
+						set_file_flags(filepath, FS_EXTENT_FL)
+						print("flags set")
+
 			except Exception:
 				failure("could not remove immutable flag")
 
@@ -165,7 +180,7 @@ def disable_ctrl_alt_del():
 def service_management(): # TODO: start stopped critical services
 	services = input("Enter a comma-separated list of critical services (no spaces) ").split(',')
 
-	running_services = [line.removeprefix(" [ + ]").strip() for line in subprocess.check_output(["service", "--status-all"]).decode().splitlines() if line.startswith(" [ + ]")]
+	running_services = [removeprefix_compat(line, " [ + ]").strip() for line in subprocess.check_output(["service", "--status-all"]).decode().splitlines() if line.startswith(" [ + ]")]
 
 	for servicename in REMOVE_IF_NOT_CRITICAL:
 		if servicename in running_services and servicename not in services:
@@ -527,7 +542,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 		conf = set_config_variable(conf, "PASS_MAX_DAYS", "90")
 		conf = set_config_variable(conf, "PASS_MIN_DAYS", '7')
-		conf = set_config_variable(conf, "PASS_WARN_DAYS", "14")
+		conf = set_config_variable(conf, "PASS_WARN_AGE", "14")
 		conf = set_config_variable(conf, "ENCRYPT_METHOD", "SHA512")
 		conf = set_config_variable(conf, "UMASK", "077")
 
@@ -807,7 +822,8 @@ module_lookup = {
 	"time-config": time_config,
 	"encrypt-partitions": encrypt_partitions,
 	"gsettings-and-gdm-config": gsettings_and_gdm_config,
-	"usb-security": usb_security
+	"usb-security": usb_security,
+	"file-attributes": file_attributes
 }
 
 for module in modules:
