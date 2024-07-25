@@ -8,8 +8,9 @@ import re
 import os
 import getpass
 import subprocess
+from typing import Dict, List
 from utils import (
-	apt, bool_input, removeprefix_compat, rmrf, set_config_variable, sys, _sys,
+	apt, bool_input, get_list_input, removeprefix_compat, rmrf, set_config_variable, sys, _sys,
 	warn, failure,
 	get_usertype_input
 )
@@ -20,11 +21,11 @@ FS_IMMUTABLE_FL = 0x00000010
 FS_APPEND_FL = 0x00000020
 FS_EXTENT_FL = 0x00080000
 
-DEFAULT_MODULES: list[str] = [
+DEFAULT_MODULES: List[str] = [
 	"apt-config", # done, this is first to ensure that all following modules can install the necessary packages
 	"ctrl-alt-del", # done
 	"gsettings-and-gdm-config", # done
-	"usb-security", # done
+	# "usb-security", # done
 	# "time-config", # done
 	"grub-config",
 	"password-policy", # done -- has todos
@@ -45,7 +46,7 @@ DEFAULT_MODULES: list[str] = [
 	"upgrade-system", # done - see todos
 ]
 
-REMOVE_IF_NOT_CRITICAL: dict[str, str] = {
+REMOVE_IF_NOT_CRITICAL: Dict[str, str] = {
 	"nginx": "nginx",
 	"apache2": "apache2",
 	"vsftpd": "vsftpd",
@@ -53,7 +54,7 @@ REMOVE_IF_NOT_CRITICAL: dict[str, str] = {
 	"pure-ftpd": "pure-ftpd"
 }
 
-IGNORE_USERS: list[str] = [
+IGNORE_USERS: List[str] = [
 	"root",
 	"daemon",
 	"bin",
@@ -64,7 +65,6 @@ IGNORE_USERS: list[str] = [
 	"lp",
 	"mail",
 	"news",
-	"uccp",
 	"proxy",
 	"www-data",
 	"backup",
@@ -77,18 +77,34 @@ IGNORE_USERS: list[str] = [
 	"uucp"
 ]
 
+IGNORE_GROUPS: List[str] = [
+	*IGNORE_USERS,
+	"adm",
+	"tty",
+	"disk",
+	"dialout",
+	"fax",
+	"cdrom",
+	"floppy",
+	"tape",
+	"sudo",
+	"operator",
+	"plugdev",
+	"users"
+]
+
 CONTINUE_PROMPT = "<enter to continue, CTRL-C at any time to exit> "
 
 SSH_NONDEFAULT_PORT = 4097
 
 class Log:
-	removed_files: list[str] = []
-	attempted_remove_packages: list[str] = []
-	removed_users: list[str] = []
-	std_users: list[str] = []
-	adm_users: list[str] = []
-	tools_installed: list[str] = []
-	services_stopped: list[str] = []
+	removed_files: List[str] = []
+	attempted_remove_packages: List[str] = []
+	removed_users: List[str] = []
+	std_users: List[str] = []
+	adm_users: List[str] = []
+	tools_installed: List[str] = []
+	services_stopped: List[str] = []
 	user_passwd: str = ""
 	vsftpd_changes: str = ""
 	sshd_changes: str = ""
@@ -353,7 +369,7 @@ def sshd_config(): # TODO: use regex to make sure necessary lines are uncommente
 	
 	sys("systemctl restart ssh")
 
-def user_management():
+def user_management(): # TODO: log all new
 	sys("useradd -D -f 35") # disable inactive accounts after 35 days, TODO: log
 
 	try:
@@ -378,6 +394,9 @@ def user_management():
 
 	Log.user_passwd = passwd
 
+	admins = get_list_input("Enter an admin's name (blank for none/continue): ")
+	users = get_list_input("Enter non-privileged user's name (blank for none/continue): ")
+
 	for user in pwd.getpwall():
 		name = user.pw_name
 
@@ -399,31 +418,31 @@ def user_management():
 
 			continue
 
-		user_type = get_usertype_input(name)
-
-		if user_type == "ignore": continue
-
-		if user_type == "none":
-			print(f"trying to delete {name}...")
-			sys(f"deluser {name}")
-
-			Log.removed_users.append(name)
-			continue
-
-		if user_type == "std":
+		if name in users:
 			print(f"trying to remove {name} from admin group...")
 			sys(f"deluser {name} adm") # Cyb3rPatri0t!
 			sys(f"deluser {name} sudo")
 
+			users.remove(name)
+
 			Log.std_users.append(name)
-
-
-		if user_type == "adm":
+		elif name in admins:
 			print(f"trying to add {name} to admin & sudo groups...")
 			sys(f"usermod -a -G adm {name}")
 			sys(f"usermod -a -G sudo {name}")
 
+			admins.remove(name)
+
 			Log.adm_users.append(name)
+		else:
+			rem_user = bool_input(f"Unknown user {name} found, remove?")
+
+			if rem_user:
+				print(f"trying to delete {name}...")
+				sys(f"deluser {name}")
+
+				Log.removed_users.append(name)
+				continue
 
 		print(f"changing password for {name} to {passwd}...")
 
@@ -432,8 +451,48 @@ def user_management():
 			stdin=open("tmppass.txt")
 		)
 
+	for user in users:
+		if bool_input(f"Non-privileged user {user} was not found, add?"):
+			sys(f"useradd {user}")
+
+			_sys(
+				f"passwd {name}",
+				stdin=open("tmppass.txt")
+			)
+
+	for adm in admins:
+		if bool_input(f"Admin {adm} was not found, add?"):
+			sys(f"useradd {adm}")
+			sys(f"usermod -a -G adm {adm}")
+			sys(f"usermod -a -G sudo {adm}")
+
+			_sys(
+				f"passwd {adm}",
+				stdin=open("tmppass.txt")
+			)
+
 	rmrf("tmppass.txt")
 
+	groups_to_add = get_list_input("Enter a group you want to create (empty for none/continue): ")
+
+	for groupname in groups_to_add:
+		sys(f"groupadd {groupname}")
+
+	for group in grp.getgrall():
+		if group.gr_name in IGNORE_GROUPS or (min_sys_uid <= group.gr_gid <= max_sys_uid):
+			print(f"ignoring known system group {group.gr_name} by default, continuing")
+			continue
+
+		if bool_input(f"group {group.gr_name} has the following users: {', '.join(group.gr_mem)}, edit? (y/n) "):
+			rem_members = get_list_input("Enter a member to remove (empty for none/continue): ")
+			add_members = get_list_input("Enter a member to add (empty for none/continue): ")
+
+			for member in rem_members:
+				sys(f"deluser {member} {group.gr_name}")
+			
+			for member in add_members:
+				sys(f"usermod -a -G {group.gr_name} {member}")
+	
 def helpful_tools():
 	apt.install(
 		"net-tools",

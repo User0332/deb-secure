@@ -2,6 +2,7 @@ import re
 import secrets
 import glob
 import subprocess
+from typing import List
 
 def debug(msg: str):
 	print(f"debug: {msg}")
@@ -98,6 +99,18 @@ def generate_passwd(user: str):
 		f.write(f"{passwd}\n{passwd}\n")
 
 	return passwd, file
+
+def get_list_input(prompt: str) -> List[str]:
+	inputs: List[str] = []
+
+	while 1:
+		inp = input(prompt)
+
+		if not inp: break
+
+		inputs.append(inp)
+
+	return inputs
 
 def removeprefix_compat(string: str, prefix: str):
 	if string.startswith(prefix):
