@@ -19,7 +19,7 @@ from utils import (
 FS_IOC_GETFLAGS = 0x80086601
 FS_IOC_SETFLAGS = 0x40086602
 FS_IMMUTABLE_FL = 0x00000010
-FS_APPEND_FL = 0x00000020
+FS_INDEX_FL = 0x00001000
 FS_EXTENT_FL = 0x00080000
 
 DEFAULT_MODULES: List[str] = [
@@ -167,10 +167,9 @@ def set_file_flags(filename: str, flags: int):
 		os.close(dir_fd)
 
 def file_attributes():
-	print("only checking /etc and /home for attributes (todo: extend without taking too much time)")
 	for root, dirs, files in os.walk('/', followlinks=False):
 		# We can't lsattr these dirs, /usr is a special case that we don't want to search
-		if root.startswith(("/snap", "/tmp", "/proc", "/sys", "/dev", "/mnt", "/run")): continue
+		if root.startswith(("/snap", "/tmp", "/proc", "/sys", "/dev", "/mnt", "/run", "/boot/efi")): continue
 		
 		for name in (item for collection in (dirs, files) for item in collection if not item.startswith('.')):
 			filepath = os.path.join(root, name)
@@ -182,13 +181,13 @@ def file_attributes():
 			try:
 				flags = get_file_flags(filepath)
 
-				if flags != FS_EXTENT_FL:
+				if (flags != FS_EXTENT_FL) and (flags != (FS_EXTENT_FL | FS_INDEX_FL)):
 					if flags & FS_IMMUTABLE_FL:
 						warn(f"{filepath} has FS_IMMUTABLE set")
 
 					sys(f"lsattr -d {filepath}")
 					print(f"note: {filepath}'s attrs above")
-					set_to_extent = bool_input(f"WARNING: {filepath}'s attributes are not [FS_EXTENT], set to [FS_EXTENT] ?")
+					set_to_extent = bool_input(f"WARNING: {filepath}'s attributes are not [FS_EXTENT] or [FS_EXTENT | FS_INDEX], set to [FS_EXTENT] ?")
 
 					if set_to_extent:
 						set_file_flags(filepath, FS_EXTENT_FL)
