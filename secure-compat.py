@@ -19,7 +19,7 @@ FS_IMMUTABLE_FL = 0x00000010
 FS_APPEND_FL = 0x00000020
 FS_EXTENT_FL = 0x00080000
 
-DEFAULT_MODULES: list[str] = [
+DEFAULT_MODULES: list = [
 	"apt-config", # done, this is first to ensure that all following modules can install the necessary packages
 	"ctrl-alt-del", # done
 	"gsettings-and-gdm-config", # done
@@ -43,7 +43,7 @@ DEFAULT_MODULES: list[str] = [
 	"upgrade-system", # done - see todos
 ]
 
-REMOVE_IF_NOT_CRITICAL: dict[str, str] = {
+REMOVE_IF_NOT_CRITICAL: dict = {
 	"nginx": "nginx",
 	"apache2": "apache2",
 	"vsftpd": "vsftpd",
@@ -51,7 +51,7 @@ REMOVE_IF_NOT_CRITICAL: dict[str, str] = {
 	"pure-ftpd": "pure-ftpd"
 }
 
-IGNORE_USERS: list[str] = [
+IGNORE_USERS: list = [
 	"root",
 	"daemon",
 	"bin",
@@ -80,13 +80,13 @@ CONTINUE_PROMPT = "<enter to continue, CTRL-C at any time to exit> "
 SSH_NONDEFAULT_PORT = 4097
 
 class Log:
-	removed_files: list[str] = []
-	attempted_remove_packages: list[str] = []
-	removed_users: list[str] = []
-	std_users: list[str] = []
-	adm_users: list[str] = []
-	tools_installed: list[str] = []
-	services_stopped: list[str] = []
+	removed_files: list = []
+	attempted_remove_packages: list = []
+	removed_users: list = []
+	std_users: list = []
+	adm_users: list = []
+	tools_installed: list = []
+	services_stopped: list = []
 	user_passwd: str = ""
 	vsftpd_changes: str = ""
 	sshd_changes: str = ""
@@ -110,22 +110,22 @@ def set_file_flags(filepath, flags):
 	with open(filepath, 'rb+') as f:
 		fcntl.ioctl(f, FS_IOC_SETFLAGS, struct.pack('I', flags))
 
-def remove_immutable_flags(directory: str):
-	for root, dirs, files in os.walk(directory):
-		for name in files:
-			filepath = os.path.join(root, name)
-			try:
-				flags = get_file_flags(filepath)
-				new_flags = flags & 
-				if flags != new_flags:
-					set_file_flags(filepath, new_flags)
-					removed_flags = []
-					if flags & FS_IMMUTABLE_FL:
-						removed_flags.append('immutable')
-					if flags & FS_APPEND_FL:
-						removed_flags.append('append-only')
-			except Exception:
-				failure("could not remove immutable flag")
+# def remove_immutable_flags(directory: str):
+# 	for root, dirs, files in os.walk(directory):
+# 		for name in files:
+# 			filepath = os.path.join(root, name)
+# 			try:
+# 				flags = get_file_flags(filepath)
+# 				new_flags = flags & 
+# 				if flags != new_flags:
+# 					set_file_flags(filepath, new_flags)
+# 					removed_flags = []
+# 					if flags & FS_IMMUTABLE_FL:
+# 						removed_flags.append('immutable')
+# 					if flags & FS_APPEND_FL:
+# 						removed_flags.append('append-only')
+# 			except Exception:
+# 				failure("could not remove immutable flag")
 
 def usb_security(): # TODO: log
 	open("/etc/modprobe.d/deb-secure.conf", 'w').write("install usb-storage /bin/false\nblacklist usb-storage")
@@ -764,7 +764,7 @@ flaggroup.add_argument("-l", "--list", action="store_true")
 args = parser.parse_args()
 
 if args.include:
-	modules: list[str] = args.include
+	modules: list = args.include
 
 	for module in modules:
 		if module not in DEFAULT_MODULES:
