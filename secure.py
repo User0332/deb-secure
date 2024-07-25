@@ -1,4 +1,5 @@
 import argparse
+from genericpath import isfile
 import glob
 import pwd
 import fcntl
@@ -120,26 +121,64 @@ class Log:
 OS_VERSION_NAME: str = re.search("VERSION_CODENAME=(\w*)", open("/etc/os-release", 'r').read()).group(1)
 
 def get_file_flags(filename: str) -> int:
-	return struct.unpack(
-		'I',
-		fcntl.ioctl(
-			open(filename, "rb"), 
-			FS_IOC_GETFLAGS, 
-			struct.pack('I', 0)
-		)
-	)[0]
+	if os.path.isfile(filename):
+		return struct.unpack(
+			'I',
+			fcntl.ioctl(
+				open(filename, "rb"), 
+				FS_IOC_GETFLAGS, 
+				struct.pack('I', 0)
+			)
+		)[0]
+
+	try:
+		dir_fd = os.open(filename, os.O_RDONLY)
+		
+		return struct.unpack(
+			'I',
+			fcntl.ioctl(
+				dir_fd,
+				FS_IOC_GETFLAGS,
+				struct.pack('I', 0)
+			)
+		)[0]
+	finally:
+		os.close(dir_fd)
 
 def set_file_flags(filename: str, flags: int):
-	fcntl.ioctl(
-		open(filename, "wb"),
-		FS_IOC_SETFLAGS,
-		struct.pack('I', flags)
-	)
+	if os.path.isfile(filename):
+		fcntl.ioctl(
+			open(filename, "wb"),
+			FS_IOC_SETFLAGS,
+			struct.pack('I', flags)
+		)
 
-def file_attributes(directory: str):
-	for root, dirs, files in os.walk(directory):
-		for name in files:
+		return
+	
+	try:
+		dir_fd = os.open(filename, os.O_WRONLY)
+		
+		fcntl.ioctl(
+			dir_fd,
+			FS_IOC_SETFLAGS,
+			struct.pack('I', flags)
+		)
+	finally:
+		os.close(dir_fd)
+
+def file_attributes():
+	print("only checking /etc and /home for attributes (todo: extend without taking too much time)")
+	for root, dirs, files in os.walk('/', followlinks=False):
+		# We can't lsattr these dirs, /usr is a special case that we don't want to search
+		if root.startswith(("/snap", "/tmp", "/proc", "/sys", "/dev", "/mnt", "/run")): continue
+		
+		for name in (item for collection in (dirs, files) for item in collection if not item.startswith('.')):
 			filepath = os.path.join(root, name)
+
+			if filepath in ("/init", "/dev", "/sys", "/proc", "/run"): continue
+
+			if os.path.islink(filepath): continue
+
 			try:
 				flags = get_file_flags(filepath)
 
@@ -147,7 +186,7 @@ def file_attributes(directory: str):
 					if flags & FS_IMMUTABLE_FL:
 						warn(f"{filepath} has FS_IMMUTABLE set")
 
-					sys("chattr")
+					sys(f"lsattr -d {filepath}")
 					print(f"note: {filepath}'s attrs above")
 					set_to_extent = bool_input(f"WARNING: {filepath}'s attributes are not [FS_EXTENT], set to [FS_EXTENT] ?")
 
@@ -156,7 +195,7 @@ def file_attributes(directory: str):
 						print("flags set")
 
 			except Exception:
-				failure("could not remove immutable flag")
+				warn(f"could not ioctl {filepath} for querying attributes")
 
 def usb_security(): # TODO: log
 	open("/etc/modprobe.d/deb-secure.conf", 'w').write("install usb-storage /bin/false\nblacklist usb-storage")
