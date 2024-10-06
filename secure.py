@@ -1,5 +1,4 @@
 import argparse
-from genericpath import isfile
 import glob
 import pwd
 import fcntl
@@ -9,10 +8,12 @@ import re
 import os
 import getpass
 import subprocess
+import threading
 from typing import Dict, List
 from utils import (
-	apt, bool_input, get_list_input, removeprefix_compat, rmrf, set_config_variable, sys, _sys,
-	warn, failure,
+	apt, bool_input, get_list_input, removeprefix_compat, 
+	rmrf, set_config_variable, sys, _sys,
+	warn, failure, threaded_input,
 	get_usertype_input
 )
 
@@ -97,26 +98,6 @@ IGNORE_GROUPS: List[str] = [
 CONTINUE_PROMPT = "<enter to continue, CTRL-C at any time to exit> "
 
 SSH_NONDEFAULT_PORT = 4097
-
-class Log:
-	removed_files: List[str] = []
-	attempted_remove_packages: List[str] = []
-	removed_users: List[str] = []
-	std_users: List[str] = []
-	adm_users: List[str] = []
-	tools_installed: List[str] = []
-	services_stopped: List[str] = []
-	user_passwd: str = ""
-	vsftpd_changes: str = ""
-	sshd_changes: str = ""
-	nginx_changes: str = ""
-	apt_changes: str = ""
-	apache2_changes: str = ""
-	passwd_changes: str = ""
-	hardening_variable_changes: str = ""
-	file_permissions_set: str = ""
-	firewall_rules: str = ""
-	ctrl_alt_del_disabled: bool = False
 
 OS_VERSION_NAME: str = re.search("VERSION_CODENAME=(\w*)", open("/etc/os-release", 'r').read()).group(1)
 
@@ -214,9 +195,6 @@ def time_config(): # TODO: V-260519, V-260520, V-260521
 	sys("dpkg -P --force-all systemd-timesyncd")
 	sys("dpkg -P --force-all ntp")
 
-	Log.tools_installed.append("chrony")
-	Log.attempted_remove_packages.extend(("systemd-timesyncd", "ntp"))
-
 def encrypt_partitions(): # TODO: V-260484
 	pass
 
@@ -229,10 +207,8 @@ def disable_ctrl_alt_del():
 	sys("systemctl mask ctrl-alt-del.target")
 	sys("systemctl daemon-reload")
 
-	Log.ctrl_alt_del_disabled = False
-
 def service_management(): # TODO: start stopped critical services
-	services = input("Enter a comma-separated list of critical services (no spaces) ").split(',')
+	services = threaded_input("Enter a comma-separated list of critical services (no spaces) ").split(',')
 
 	running_services = [removeprefix_compat(line, " [ + ]").strip() for line in subprocess.check_output(["service", "--status-all"]).decode().splitlines() if line.startswith(" [ + ]")]
 
@@ -241,14 +217,10 @@ def service_management(): # TODO: start stopped critical services
 			if bool_input(f"Non-critical service {servicename} found, stop? "):
 				sys(f"systemctl stop {servicename}")
 
-				Log.services_stopped.append(servicename)
-
 	for servicename, packagename in REMOVE_IF_NOT_CRITICAL.items():
 		if servicename not in services:
 			if bool_input(f"Non-critical service package {packagename} may be installed, try to remove? "):
 				apt.remove(packagename)
-
-				Log.attempted_remove_packages.append(packagename)
 
 def prohibited_files():
 	prohibited_files = (
@@ -261,19 +233,19 @@ def prohibited_files():
 	for i, mp3 in enumerate(prohibited_files):
 		print(f"{i}: {mp3}")
 
-	remove = input("choice: ")
+	remove = threaded_input("choice: ")
 
 	if not remove: return
 
 	if remove == "all":
 		rmrf(*prohibited_files)
-		Log.removed_files = prohibited_files
+
 	else:
 		remove_idxs = [int(idx) for idx in remove.split(',')]
 
 		for idx in remove_idxs:
 			rmrf(prohibited_files[idx])
-			Log.removed_files.append(prohibited_files[idx])
+
 
 def vsftpd_config():
 	sys("ufw allow ftp")
@@ -286,8 +258,6 @@ def vsftpd_config():
 
 	open("/etc/vsftpd.conf", 'w').write(conf)
 
-	Log.vsftpd_changes+="anonymous_enable=NO,ssl_enable=YES,"
-	Log.firewall_rules+="allow ftp,"
 
 def nginx_config():
 	print("nginx auto-config not implemented yet")
@@ -302,7 +272,7 @@ def apache2_config():
 
 	open("/etc/apache2/apache2.conf", 'w').write(conf)
 
-	Log.apache2_changes+="ServerTokens=Prod,ServerSignature=Off,Header=always unset X-Powered-By,TraceEnable=Off,"
+
 
 def apt_config():
 	custom_override_conf = """
@@ -312,7 +282,7 @@ APT::Periodic::AutocleanInterval "7";
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Download-Upgradeable-Packages "1";
 APT::Periodic::Unattended-Upgrade "1";
-APT::Install-Recommends "false";
+APT::Install-zRecommends "false";
 APT::Get::AutomaticRemove "true";
 APT::Install-Suggests "false";
 Acquire::AllowDowngradeToInsecureRepositories "false";
@@ -322,7 +292,7 @@ APT::Sandbox::Seccomp "1";
 
 	open("/etc/apt/apt.conf.d/97deb-secure", 'w').write(custom_override_conf)
 
-	Log.apt_changes+=f"added config {custom_override_conf},"
+
 
 	try: conf = open("/etc/apt/apt.conf.d/50unattended-upgrades", 'r').read()
 	except FileNotFoundError: conf = ""
@@ -332,7 +302,7 @@ APT::Sandbox::Seccomp "1";
 
 	open("/etc/apt/apt.conf.d/50unattended-upgrades", 'w').write(conf)
 
-	Log.apt_changes+="added config Unattended-Upgrade::Remove-Unused-Dependencies=true,Unattended-Upgrade::Remove-Unused-Kernel-Packages=true,"
+
 
 	apt_sources = f"""
 deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME} main restricted
@@ -360,13 +330,13 @@ deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-backports main restricte
 	open("/etc/apt/sources.list", 'a').write(apt_sources)
 
 			
-	Log.apt_changes+=f"added the following sources to sources.list: {apt_sources},"
+
 
 def sshd_config(): # TODO: use regex to make sure necessary lines are uncommented, add more, including keys for users
 	sys(f"ufw allow {SSH_NONDEFAULT_PORT}")
 	sys("ufw reload")
 
-	Log.firewall_rules+="allow ssh,"
+
 
 	try:
 		conf = open("/etc/ssh/sshd_config", 'r').read()
@@ -396,13 +366,6 @@ def sshd_config(): # TODO: use regex to make sure necessary lines are uncommente
 
 		open("/etc/ssh/sshd_config", 'w').write(conf)
 
-		Log.sshd_changes+=(
-			"PermitRootLogin=no,PermitEmptyPasswords=no,PermitUserEnvironment=no,PermitTunnel=no,PasswordAuthentication=no,X11Forwarding=no,AllowTcpForwarding=no" 
-			"AllowAgentForwarding=no,DebianBanner=no,UsePAM=yes,IgnoreRhosts=yes,MaxAuthTries=5,Ciphers=aes256-ctr,aes256-gcm@openssh.com,aes192-ctr,aes128-ctr,aes128-gcm@openssh.com,ClientAliveInterval=600"
-			"ClientAliveCountMax=1,X11UseLocalhost=yes,MACs=hmac-sha2-512,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-256-etm@openssh.com,KexAlgorithms=ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,"
-			""
-		)
-
 	except OSError as e: failure(e)
 	
 	sys("systemctl restart ssh")
@@ -426,11 +389,11 @@ def user_management(): # TODO: log all new
 		min_sys_uid = 101
 		max_sys_uid = min_uid-1
 
-	passwd = input("Please provide a secure password for all users: ")
+	passwd = threaded_input("Please provide a secure password for all users: ")
 
 	open("tmppass.txt", 'w').write(f"{passwd}\n{passwd}\n")
 
-	Log.user_passwd = passwd
+
 
 	admins = get_list_input("Enter an admin's name (blank for none/continue): ")
 	users = get_list_input("Enter non-privileged user's name (blank for none/continue): ")
@@ -452,7 +415,7 @@ def user_management(): # TODO: log all new
 			if remove:
 				sys(f"deluser {name}")
 
-				Log.removed_users.append(name)
+
 
 			continue
 
@@ -463,7 +426,7 @@ def user_management(): # TODO: log all new
 
 			users.remove(name)
 
-			Log.std_users.append(name)
+
 		elif name in admins:
 			print(f"trying to add {name} to admin & sudo groups...")
 			sys(f"usermod -a -G adm {name}")
@@ -471,7 +434,7 @@ def user_management(): # TODO: log all new
 
 			admins.remove(name)
 
-			Log.adm_users.append(name)
+
 		else:
 			rem_user = bool_input(f"Unknown user {name} found, remove?")
 
@@ -479,7 +442,7 @@ def user_management(): # TODO: log all new
 				print(f"trying to delete {name}...")
 				sys(f"deluser {name}")
 
-				Log.removed_users.append(name)
+
 				continue
 
 		print(f"changing password for {name} to {passwd}...")
@@ -541,7 +504,7 @@ def helpful_tools():
 		"gufw"
 	)
 
-	Log.tools_installed.extend(["net-tools", "chkrootkit", "rkhunter", "lynis", "stacer", "gufw"])
+
 
 
 def package_cleaner(): # remove bad packages
@@ -558,19 +521,6 @@ def package_cleaner(): # remove bad packages
 
 	apt.autoremove()
 
-	Log.attempted_remove_packages.extend(
-		[
-			"samba-common", "icecast2",
-			"zangband", "libpcap-dev", "ophcrack",
-			"hydra", "deluge", "wireshark", "nmap",
-			"manaplus", "ettercap", "ettercap-graphical", "zenmap",
-			"freeciv", "kismet-plugins",
-			"libnet-akismet-perl",
-			"ruby-akismet", "gameconqueror", "telnetd",
-			"rsh-server", "mines", "mahjongg", "sudoku"
-		]
-	)
-
 def upgrade_system(): # TODO: maybe change /etc/apt/sources.list to see if necessary repos can be enabled
 	apt.update()
 	apt.upgrade()
@@ -586,7 +536,7 @@ ufw default allow outgoing
 ufw enable
 """)
 	
-	Log.firewall_rules+="default reject incoming,default allow outgoing"
+
 
 
 def file_permissions(): # TODO: V-260489, V-260490, V-260491
@@ -610,7 +560,7 @@ def file_permissions(): # TODO: V-260489, V-260490, V-260491
 	sys("chmod 440 /etc/sudoers")
 	sys("chmod 444 /etc/machine-id")
 
-	Log.file_permissions_set+="/etc - [recursive] 755 root:root,/etc/shadow* - 640 root:shadow,/etc/gshadow* - 640 root:shadow,/etc/sudoers - 440 root:root,/etc/machine-id - 440 root:root,"
+
 
 	sys("chown -R root:root /usr/sbin /usr/bin /usr/local/bin /usr/local/sbin /lib /lib64 /usr/lib")
 	sys("chmod -R 755 /usr/sbin /usr/bin /usr/local/bin /usr/local/sbin /lib /lib64 /usr/lib")
@@ -618,16 +568,16 @@ def file_permissions(): # TODO: V-260489, V-260490, V-260491
 	sys("chmod 4755 /usr/bin/sudo")
 	sys("chmod 4755 /usr/bin/pkexec")
 
-	Log.file_permissions_set+="/usr/**/*bin /lib* /usr/lib [recursive] 755 root:root,/usr/bin/sudo 4755 root:root,/usr/bin/pkexec 4755 root:root"
+
 
 	sys("chown root:syslog /var/log")
 	sys("chmod 750 /var/log")
 
-	Log.file_permissions_set+="/var/log root:syslog 750,"
+
 
 	sys("chmod 740 /usr/bin/journalctl")
 
-	Log.file_permissions_set="/usr/bin/journalctl root:root 740,"
+
 
 def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573), TODO: fix logging for all
 	# TODO: tmpdir config (should it be session required or session optional?)
@@ -646,13 +596,13 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 		open("/etc/login.defs", 'w').write(conf)
 
-		Log.passwd_changes+="login.defs: max_days=90,min_days=7,warn_age=14,encrypt_method=sha512,"
+
 	except OSError as e: failure(e)
 
 	if OS_VERSION_NAME == "bionic":
 		apt.install("libpam-cracklib", "libpam-modules") 
 
-		Log.tools_installed.extend(("libpam-cracklib", "libpam-modules"))
+
 
 		try:
 			conf = open("/etc/pam.d/common-password", 'r').read()
@@ -668,7 +618,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 				open("/etc/pam.d/common-password", 'w').write(conf)
 
-				Log.passwd_changes+="common-password: ... pam_unix.so ... remember=5 minlen=8, ... pam_cracklib.so ... ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1,"
+
 			except (TypeError, AttributeError):
 				failure("cracklib did not make its way into common-password")
 		except OSError as e: failure(e)
@@ -686,12 +636,12 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 			open("/etc/pam.d/common-auth", 'w').write(conf)
 
-			Log.passwd_changes+="common-auth: ... pam_tally2.so onerr=fail deny=5 unlock_time=1800"
+
 		except OSError as e: failure(e)		
 	else:
 		apt.install("libpam-pwquality", "libpam-fail2ban", "libpam-modules")
 
-		Log.tools_installed.extend(("libpam-pwquality", "libpam-fail2ban", "libpam-modules"))
+
 
 		try:
 			pwquality_conf = open("/etc/security/pwquality.conf", 'r').read()
@@ -743,7 +693,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 			try:
 				pam_lastlog = re.search(r"^.*pam_lastlog\.so.*$", login_conf, re.MULTILINE).group()
 
-				login_conf = login_conf.replace(pam_lastlog, f"session     required     pam_lastlog.so     showfailed")
+
 			except AttributeError:
 				failure("pam_lastlog line doesn't exist in login")
 
@@ -768,7 +718,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 	# FOR ALL VERSIONS
 
 	sys("passwd -dl root")
-	Log.passwd_changes+="root account: deleted root password and locked root account,"
+
 
 	sys("pam-auth-update --force")
 	sys("pam-auth-update --force")
@@ -818,48 +768,6 @@ sysctl -w  net.ipv4.tcp_rfc1337=1
 sysctl -w  net.ipv4.ip_forward=0
 """)
 	
-	Log.hardening_variable_changes+="""
-dev.tty.ldisc_autoload=0
-fs.protected_fifos=2
-fs.protected_hardlinks=1
-fs.protected_regular=2
-fs.protected_symlinks=1
-fs.suid_dumpable=0
-kernel.core_uses_pid=1
-kernel.ctrl-alt-del=0
-kernel.dmesg_restrict=1
-kernel.kptr_restrict=2
-kernel.modules_disabled=1
-kernel.perf_event_paranoid=3
-kernel.randomize_va_space=2
-kernel.sysrq=0
-kernel.unprivileged_bpf_disabled=1
-kernel.yama.ptrace_scope=1
-net.core.bpf_jit_harden=2
-net.ipv4.conf.all.accept_redirects=0
-net.ipv4.conf.all.accept_source_route=0
-net.ipv4.conf.all.bootp_relay=0
-net.ipv4.conf.all.forwarding=0
-net.ipv4.conf.all.log_martians=1
-net.ipv4.conf.all.mc_forwarding=0
-net.ipv4.conf.all.proxy_arp=0
-net.ipv4.conf.all.rp_filter=1
-net.ipv4.conf.all.send_redirects=0
-net.ipv4.conf.default.accept_redirects=0
-net.ipv4.conf.default.accept_source_route=0
-net.ipv4.conf.default.log_martians=1
-net.ipv4.icmp_echo_ignore_broadcasts=1
-net.ipv4.icmp_ignore_bogus_error_responses=1
-net.ipv4.tcp_syncookies=1
-net.ipv4.tcp_timestamps=0
-net.ipv6.conf.all.accept_redirects=0
-net.ipv6.conf.all.accept_source_route=0
-net.ipv6.conf.default.accept_redirects=0
-net.ipv6.conf.default.accept_source_route=0
-net.ipv6.conf.all.disable_ipv6=1
-net.ipv4.tcp_rfc1337=1
-net.ipv4.ip_forward=0
-"""
 
 	sys("systemctl disable kdump") # TODO: check if works on fresh VM
 	sys("systemctl mask kdump")
@@ -868,9 +776,11 @@ net.ipv4.ip_forward=0
 
 parser = argparse.ArgumentParser(description="Secure Debian-Based Systems", prog="secure")
 
+parser.add_argument("-t", "--threads", nargs=1, default=1, type=int, help="run the script with n threads")
+
 flaggroup = parser.add_mutually_exclusive_group(required=True)
-flaggroup.add_argument("-i", "--include", nargs='*', default=[])
-flaggroup.add_argument("-e", "--exclude", nargs='*', default=[])
+flaggroup.add_argument("-i", "--include", nargs='*', default=[], help="use only the specified list of modules")
+flaggroup.add_argument("-e", "--exclude", nargs='*', default=[], help="run with the default set of modules, excluding the ones specified in the list")
 flaggroup.add_argument("-l", "--list", action="store_true")
 
 args = parser.parse_args()
@@ -894,9 +804,11 @@ else:
 
 	exit(0)
 
+MAX_THREADS: int = args.threads
+
 print(f"detected OS: Ubuntu {OS_VERSION_NAME}")
 
-input(f"\n\ncontinuing with the following modules: {' '.join(modules)} {CONTINUE_PROMPT}")
+input(f"\n\ncontinuing with the following modules on {MAX_THREADS} threads: {' '.join(modules)} {CONTINUE_PROMPT}")
 
 module_lookup = {
 	"password-policy": password_policy,
@@ -923,35 +835,22 @@ module_lookup = {
 	"file-attributes": file_attributes
 }
 
+waiting_threads: list[threading.Thread] = []
+
 for module in modules:
 	print(f"running {module}...")
 	
-	module_lookup[module]()
+	while len(waiting_threads) == MAX_THREADS:
+		for thread in [*waiting_threads]:
+			if not thread.is_alive(): waiting_threads.remove(thread)
+		
+	next_task = threading.Thread(target=module_lookup[module])
+	next_task.daemon = True
+	next_task.start()
 
-	input(f"module {module} complete {CONTINUE_PROMPT}")
+	print(f"placed {module} on a new thread")
 
-	with open("./secure.log", 'w') as f:
-		f.write(f"removed files: {', '.join(Log.removed_files)}\n")
-		f.write(f"attempted to remove packages: {', '.join(Log.attempted_remove_packages)}\n")
-		f.write(f"services stopped: {', '.join(Log.services_stopped)}\n")
-		f.write(f"removed users: {', '.join(Log.removed_users)}\n")
-		f.write(f"std users: {', '.join(Log.std_users)}\n")
-		f.write(f"adm users: {', '.join(Log.adm_users)}\n")
-		f.write(f"user passwd: {Log.user_passwd}\n")
-		f.write(f"tools installed: {', '.join(Log.tools_installed)}\n")
-		f.write(f"vsftpd changes: {Log.vsftpd_changes}\n")
-		f.write(f"sshd changes: {Log.sshd_changes}\n")
-		f.write(f"nginx changes: {Log.nginx_changes}\n")
-		f.write(f"apt changes: {Log.apt_changes}\n")
-		f.write(f"apache2 changes: {Log.apache2_changes}\n")
-		f.write(f"password policy changes: {Log.passwd_changes}\n")
-		f.write(f"file permissions set: {Log.file_permissions_set}\n")
-		f.write(f"firewall rules set: {Log.firewall_rules}\n")
-		f.write(f"hardening variables set: {Log.hardening_variable_changes}\n")
-		if Log.ctrl_alt_del_disabled: f.write(f"CTRL-ALT-DEL disabled\n")
-
-
-print("wrote to log file secure.log")
+	waiting_threads.append(next_task)
 
 # TODO: have the user input various services that are required
 # TODO: see old script file

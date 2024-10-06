@@ -2,7 +2,12 @@ import re
 import secrets
 import glob
 import subprocess
+import threading
 from typing import List
+
+input_lock = threading.Lock()
+
+thread_local = threading.local()
 
 def debug(msg: str):
 	print(f"debug: {msg}")
@@ -34,17 +39,25 @@ def set_config_variable(conf: str, name: str, value: str, sep: str=' ') -> str:
 		
 def bool_input(prompt: str) -> bool:
 	while 1:
-		inp = input(prompt).lower()
+		inp = threaded_input(prompt).lower()
 
 		if inp in ('y', "yes"): return True
 		if inp in ('n', "no"): return False
 
 		print("Invalid Input!")
+
+def threaded_input(prompt: str) -> str:
+	with input_lock:
+		return input(f"{thread_local.current_module}] {prompt}")
 		
 class _apt:
+	def __init__(self) -> None:
+		self.lock = threading.Lock()
+
 	def __call__(self, cmd: str):
-		try: return subprocess.call(["apt", *cmd.split()])
-		except OSError as e: failure(e)
+		with self.lock:
+			try: return subprocess.call(["apt", *cmd.split()])
+			except OSError as e: failure(e)
 
 	def install(self, *packages: str): return self(f"install -y {' '.join(packages)}")
 
@@ -77,7 +90,7 @@ def rmrf(*paths: str):
 
 def get_usertype_input(user):
 	while 1:
-		input_type = input(f"User Type for {user}?\ns (std), a (adm), n (doesn't exist) i (ignore): ").lower()
+		input_type = threaded_input(f"User Type for {user}?\ns (std), a (adm), n (doesn't exist) i (ignore): ").lower()
 
 		if input_type in ('s', "std", "standard", "reg", "regular"):
 			return "std"
@@ -103,12 +116,13 @@ def generate_passwd(user: str):
 def get_list_input(prompt: str) -> List[str]:
 	inputs: List[str] = []
 
-	while 1:
-		inp = input(prompt)
+	with input_lock:
+		while 1:
+			inp = input(f"[{thread_local.current_module}] {prompt}")
 
-		if not inp: break
+			if not inp: break
 
-		inputs.append(inp)
+			inputs.append(inp)
 
 	return inputs
 
