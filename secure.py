@@ -853,7 +853,6 @@ for module in modules:
 			if not thread.is_alive(): waiting_threads.remove(thread)
 		
 	next_task = threading.Thread(target=run_module, args=(module,))
-	next_task.daemon = True
 	next_task.start()
 
 	waiting_threads.append(next_task)
