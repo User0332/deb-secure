@@ -16,6 +16,7 @@ from utils import (
 	warn, failure, threaded_input,
 	get_usertype_input
 )
+import utils
 
 FS_IOC_GETFLAGS = 0x80086601
 FS_IOC_SETFLAGS = 0x40086602
@@ -421,7 +422,7 @@ def user_management(): # TODO: log all new
 
 		if name in users:
 			print(f"trying to remove {name} from admin group...")
-			sys(f"deluser {name} adm") # Cyb3rPatri0t!
+			sys(f"deluser {name} adm")
 			sys(f"deluser {name} sudo")
 
 			users.remove(name)
@@ -835,20 +836,25 @@ module_lookup = {
 	"file-attributes": file_attributes
 }
 
+def run_module(name: str) -> None:
+	utils.thread_local.current_module = name
+
+	print(f"placed {name} on a new thread")
+
+	module_lookup[name]()
+
+	print(f"module {name} complete, thread will be freed soon")
+
 waiting_threads: list[threading.Thread] = []
 
-for module in modules:
-	print(f"running {module}...")
-	
+for module in modules:	
 	while len(waiting_threads) == MAX_THREADS:
 		for thread in [*waiting_threads]:
 			if not thread.is_alive(): waiting_threads.remove(thread)
 		
-	next_task = threading.Thread(target=module_lookup[module])
+	next_task = threading.Thread(target=run_module, args=(module,))
 	next_task.daemon = True
 	next_task.start()
-
-	print(f"placed {module} on a new thread")
 
 	waiting_threads.append(next_task)
 
