@@ -532,7 +532,7 @@ def firewall(): # TODO: on this & other service configs RATE LIMIT - V-260517
 
 	sys(
 """
-ufw default reject incoming
+ufw default deny incoming
 ufw default allow outgoing
 ufw enable
 """)
