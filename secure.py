@@ -229,12 +229,13 @@ def prohibited_files():
 		glob.glob("/home/**/*.mp4", recursive=True)
 	)
 
-	print("found the following mp3 and mp4 files in /home (to remove, provide comma-sep list or 'all'): ")
+	with utils.io_lock:
+		print("found the following mp3 and mp4 files in /home (to remove, provide comma-sep list or 'all'): ")
 
-	for i, mp3 in enumerate(prohibited_files):
-		print(f"{i}: {mp3}")
+		for i, mp3 in enumerate(prohibited_files):
+			print(f"{i}: {mp3}")
 
-	remove = threaded_input("choice: ")
+		remove = input("choice: ")
 
 	if not remove: return
 
@@ -395,63 +396,63 @@ def user_management(): # TODO: log all new
 	open("tmppass.txt", 'w').write(f"{passwd}\n{passwd}\n")
 
 
-
 	admins = get_list_input("Enter an admin's name (blank for none/continue): ")
 	users = get_list_input("Enter non-privileged user's name (blank for none/continue): ")
 
-	for user in pwd.getpwall():
-		name = user.pw_name
+	with utils.io_lock:
+		for user in pwd.getpwall():
+			name = user.pw_name
 
-		if name in IGNORE_USERS or (min_sys_uid <= user.pw_uid <= max_sys_uid):
-			print(f"ignoring known system user {name} by default, continuing")
-			continue
+			if name in IGNORE_USERS or (min_sys_uid <= user.pw_uid <= max_sys_uid):
+				print(f"ignoring known system user {name} by default, continuing")
+				continue
 
-		if name == getpass.getuser(): # redundant case because the script must be run as root
-			print(f"ignoring user {name} (self), continuing")
-			continue
+			if name == getpass.getuser(): # redundant case because the script must be run as root
+				print(f"ignoring user {name} (self), continuing")
+				continue
 
-		if user.pw_uid == 0: # non-root uid 0 user, must delete
-			remove = bool_input(f"URGENT: non-root uid 0 user {name} found, remove? ")
+			if user.pw_uid == 0: # non-root uid 0 user, must delete
+				remove = bool_input(f"URGENT: non-root uid 0 user {name} found, remove? ")
 
-			if remove:
-				sys(f"deluser {name}")
+				if remove:
+					sys(f"deluser {name}")
 
-
-
-			continue
-
-		if name in users:
-			print(f"trying to remove {name} from admin group...")
-			sys(f"deluser {name} adm")
-			sys(f"deluser {name} sudo")
-
-			users.remove(name)
-
-
-		elif name in admins:
-			print(f"trying to add {name} to admin & sudo groups...")
-			sys(f"usermod -a -G adm {name}")
-			sys(f"usermod -a -G sudo {name}")
-
-			admins.remove(name)
-
-
-		else:
-			rem_user = bool_input(f"Unknown user {name} found, remove?")
-
-			if rem_user:
-				print(f"trying to delete {name}...")
-				sys(f"deluser {name}")
 
 
 				continue
 
-		print(f"changing password for {name} to {passwd}...")
+			if name in users:
+				print(f"trying to remove {name} from admin group...")
+				sys(f"deluser {name} adm")
+				sys(f"deluser {name} sudo")
 
-		_sys(
-			f"passwd {name}",
-			stdin=open("tmppass.txt")
-		)
+				users.remove(name)
+
+
+			elif name in admins:
+				print(f"trying to add {name} to admin & sudo groups...")
+				sys(f"usermod -a -G adm {name}")
+				sys(f"usermod -a -G sudo {name}")
+
+				admins.remove(name)
+
+
+			else:
+				rem_user = bool_input(f"Unknown user {name} found, remove?")
+
+				if rem_user:
+					print(f"trying to delete {name}...")
+					sys(f"deluser {name}")
+
+
+					continue
+
+			print(f"changing password for {name} to {passwd}...")
+
+			_sys(
+				f"passwd {name}",
+				stdin=open("tmppass.txt")
+			)
 
 	for user in users:
 		if bool_input(f"Non-privileged user {user} was not found, add?"):
@@ -480,21 +481,22 @@ def user_management(): # TODO: log all new
 	for groupname in groups_to_add:
 		sys(f"groupadd {groupname}")
 
-	for group in grp.getgrall():
-		if group.gr_name in IGNORE_GROUPS or (min_sys_uid <= group.gr_gid <= max_sys_uid):
-			print(f"ignoring known system group {group.gr_name} by default, continuing")
-			continue
+	with utils.io_lock:
+		for group in grp.getgrall():
+			if group.gr_name in IGNORE_GROUPS or (min_sys_uid <= group.gr_gid <= max_sys_uid):
+				print(f"ignoring known system group {group.gr_name} by default, continuing")
+				continue
 
-		if bool_input(f"group {group.gr_name} has the following users: {', '.join(group.gr_mem)}, edit? (y/n) "):
-			rem_members = get_list_input("Enter a member to remove (empty for none/continue): ")
-			add_members = get_list_input("Enter a member to add (empty for none/continue): ")
+			if bool_input(f"group {group.gr_name} has the following users: {', '.join(group.gr_mem)}, edit? (y/n) "):
+				rem_members = get_list_input("Enter a member to remove (empty for none/continue): ")
+				add_members = get_list_input("Enter a member to add (empty for none/continue): ")
 
-			for member in rem_members:
-				sys(f"deluser {member} {group.gr_name}")
-			
-			for member in add_members:
-				sys(f"usermod -a -G {group.gr_name} {member}")
-	
+				for member in rem_members:
+					sys(f"deluser {member} {group.gr_name}")
+				
+				for member in add_members:
+					sys(f"usermod -a -G {group.gr_name} {member}")
+		
 def helpful_tools():
 	apt.install(
 		"net-tools",

@@ -6,7 +6,7 @@ import threading
 from sys import stdout
 from typing import List
 
-input_lock = threading.Lock()
+io_lock = threading.Lock()
 
 thread_local = threading.local()
 
@@ -48,7 +48,7 @@ def bool_input(prompt: str) -> bool:
 		print("Invalid Input!")
 
 def threaded_input(prompt: str) -> str:
-	with input_lock:
+	with io_lock:
 		stdout.flush()
 
 		print(f"{thread_local.current_module}] {prompt}", end="", flush=True)
@@ -121,7 +121,7 @@ def generate_passwd(user: str):
 def get_list_input(prompt: str) -> List[str]:
 	inputs: List[str] = []
 
-	with input_lock:
+	with io_lock:
 		stdout.flush()
 
 		while 1:
