@@ -841,11 +841,11 @@ module_lookup = {
 def run_module(name: str) -> None:
 	utils.thread_local.current_module = name
 
-	print(f"placed {name} on a new thread")
+	with utils.io_lock: print(f"placed {name} on a new thread")
 
 	module_lookup[name]()
 
-	print(f"module {name} complete, thread will be freed soon")
+	with utils.io_lock: print(f"module {name} complete, thread will be freed soon")
 
 waiting_threads: list[threading.Thread] = []
 
