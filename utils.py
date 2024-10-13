@@ -11,13 +11,13 @@ io_lock = threading.Lock()
 thread_local = threading.local()
 
 def debug(msg: str):
-	print(f"debug: {msg}")
+	with io_lock: print(f"debug: {msg}")
 
 def failure(msg: str):
-	print(f"error: failed on module with {msg}")
+	with io_lock: print(f"error: failed on module with {msg}")
 
 def warn(msg: str):
-	print(f"warning: module warned with {msg}")
+	with io_lock: print(f"warning: module warned with {msg}")
 
 def comment_all_of_pattern(conf: str, pattern: str) -> str:
 	for match in re.finditer(fr"^{pattern}$", conf, re.MULTILINE):
@@ -39,13 +39,14 @@ def set_config_variable(conf: str, name: str, value: str, sep: str=' ') -> str:
 			return conf+f"\n\n{name}{sep}{value}"
 		
 def bool_input(prompt: str) -> bool:
-	while 1:
-		inp = threaded_input(prompt).lower()
+	with io_lock:
+		while 1:
+			inp = input(prompt).lower()
 
-		if inp in ('y', "yes"): return True
-		if inp in ('n', "no"): return False
+			if inp in ('y', "yes"): return True
+			if inp in ('n', "no"): return False
 
-		print("Invalid Input!")
+			print("Invalid Input!")
 
 def threaded_input(prompt: str) -> str:
 	with io_lock:
