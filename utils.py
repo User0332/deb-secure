@@ -3,6 +3,7 @@ import secrets
 import glob
 import subprocess
 import threading
+from sys import stdout
 from typing import List
 
 input_lock = threading.Lock()
@@ -48,7 +49,11 @@ def bool_input(prompt: str) -> bool:
 
 def threaded_input(prompt: str) -> str:
 	with input_lock:
-		return input(f"{thread_local.current_module}] {prompt}")
+		stdout.flush()
+
+		print(f"{thread_local.current_module}] {prompt}", end="", flush=True)
+
+		return input()
 		
 class _apt:
 	def __init__(self) -> None:
@@ -117,8 +122,12 @@ def get_list_input(prompt: str) -> List[str]:
 	inputs: List[str] = []
 
 	with input_lock:
+		stdout.flush()
+
 		while 1:
-			inp = input(f"[{thread_local.current_module}] {prompt}")
+			print(f"{thread_local.current_module}] {prompt}", end="", flush=True)
+
+			inp = input()
 
 			if not inp: break
 
