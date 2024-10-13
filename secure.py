@@ -824,7 +824,7 @@ module_lookup = {
 	"grub-config": grub_config,
 	"user-management": user_management,
 	"apt-config": apt_config,
-	"prohibited-files": prohibited_files,-
+	"prohibited-files": prohibited_files,
 	"service-management": service_management,
 	"ctrl-alt-del": disable_ctrl_alt_del,
 	"time-config": time_config,
