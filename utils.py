@@ -61,7 +61,7 @@ class _apt:
 
 	def __call__(self, cmd: str):
 		with self.lock:
-			try: return subprocess.call(["apt", *cmd.split()])
+			try: return subprocess.call(["apt", *cmd.split()], stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
 			except OSError as e: failure(e)
 
 	def install(self, *packages: str): return self(f"install -y {' '.join(packages)}")
@@ -79,7 +79,7 @@ class _apt:
 	def upgrade(self): return self("upgrade -y")
 
 def _sys(cmd: str, **kwargs):
-	try: return subprocess.call(cmd.split(), **kwargs)
+	try: return subprocess.call(cmd.split(), **kwargs, stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
 	except OSError as e: failure(e)
 
 def sys(cmds: str):
