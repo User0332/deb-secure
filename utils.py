@@ -52,7 +52,7 @@ def threaded_input(prompt: str) -> str:
 	with io_lock:
 		stdout.flush()
 
-		print(f"{thread_local.current_module}] {prompt}", end="", flush=True)
+		print(f"[{thread_local.current_module}] {prompt}", end="", flush=True)
 
 		return input()
 		
@@ -126,7 +126,7 @@ def get_list_input(prompt: str) -> List[str]:
 		stdout.flush()
 
 		while 1:
-			print(f"{thread_local.current_module}] {prompt}", end="", flush=True)
+			print(f"[{thread_local.current_module}] {prompt}", end="", flush=True)
 
 			inp = input()
 
