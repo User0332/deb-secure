@@ -722,10 +722,6 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 	sys("passwd -dl root")
 
-
-	sys("pam-auth-update --force")
-	sys("pam-auth-update --force")
-
 def kernel_harden():
 	sys(
 """
