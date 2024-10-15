@@ -849,6 +849,10 @@ def run_module(name: str) -> None:
 
 	with utils.io_lock: print(f"module {name} complete, thread will be freed soon")
 
+	waiting_threads.remove(
+		(name, threading.current_thread())
+	)
+
 def sigint_handler(sig, frame) -> None:
 	print("ATTEMPTING TO ACQUIRE I/O LOCK")
 
@@ -877,9 +881,7 @@ signal.signal(signal.SIGINT, sigint_handler)
 waiting_threads: list[tuple[str, threading.Thread]] = []
 
 for module in modules:	
-	while len(waiting_threads) == MAX_THREADS:
-		for name, thread in [*waiting_threads]:
-			if not thread.is_alive(): waiting_threads.remove((name, thread))
+	while len(waiting_threads) == MAX_THREADS: pass
 		
 	next_task = threading.Thread(target=run_module, args=(module,))
 	next_task.start()
