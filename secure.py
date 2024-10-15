@@ -152,7 +152,7 @@ def set_file_flags(filename: str, flags: int):
 def file_attributes():
 	for root, dirs, files in os.walk('/', followlinks=False):
 		# We can't lsattr these dirs, /usr is a special case that we don't want to search
-		if root.startswith(("/snap", "/tmp", "/proc", "/sys", "/dev", "/mnt", "/run", "/boot/efi")): continue
+		if root.startswith(("/snap", "/tmp", "/proc", "/sys", "/dev", "/mnt", "/run", "/boot")): continue
 		
 		for name in (item for collection in (dirs, files) for item in collection if not item.startswith('.')):
 			filepath = os.path.join(root, name)
@@ -878,8 +878,8 @@ waiting_threads: list[tuple[str, threading.Thread]] = []
 
 for module in modules:	
 	while len(waiting_threads) == MAX_THREADS:
-		for thread in [*waiting_threads]:
-			if not thread.is_alive(): waiting_threads.remove(thread)
+		for name, thread in [*waiting_threads]:
+			if not thread.is_alive(): waiting_threads.remove((name, thread))
 		
 	next_task = threading.Thread(target=run_module, args=(module,))
 	next_task.start()
@@ -889,3 +889,4 @@ for module in modules:
 # TODO: have the user input various services that are required
 # TODO: see old script file
 # TODO: log errors & redirect command output to log file
+# TODO: ignore more system groups AND user-groups
