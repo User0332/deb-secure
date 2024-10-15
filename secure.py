@@ -12,7 +12,7 @@ import subprocess
 import threading
 from typing import Dict, List
 from utils import (
-	apt, bool_input, get_list_input, removeprefix_compat, 
+	apt, bool_input, bool_input_nolock, get_list_input, removeprefix_compat, 
 	rmrf, set_config_variable, sys, _sys,
 	warn, failure, threaded_input,
 	get_usertype_input
@@ -172,11 +172,10 @@ def file_attributes():
 						subprocess.call(["lsattr", "-d", filepath])
 						print(f"note: {filepath}'s attrs above")
 
-					set_to_extent = bool_input(f"WARNING: {filepath}'s attributes are not [FS_EXTENT] or [FS_EXTENT | FS_INDEX], set to [FS_EXTENT] ?")
+						set_to_extent = bool_input_nolock(f"WARNING: {filepath}'s attributes are not [FS_EXTENT] or [FS_EXTENT | FS_INDEX], set to [FS_EXTENT] ?")
 
-					if set_to_extent:
-						set_file_flags(filepath, FS_EXTENT_FL)
-						with utils.io_lock:
+						if set_to_extent:
+							set_file_flags(filepath, FS_EXTENT_FL)
 							print("flags set")
 
 			except Exception:
@@ -442,7 +441,7 @@ def user_management(): # TODO: log all new
 
 
 			else:
-				rem_user = bool_input(f"Unknown user {name} found, remove?")
+				rem_user = bool_input_nolock(f"Unknown user {name} found, remove?")
 
 				if rem_user:
 					print(f"trying to delete {name}...")
