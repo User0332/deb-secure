@@ -168,13 +168,16 @@ def file_attributes():
 					if flags & FS_IMMUTABLE_FL:
 						warn(f"{filepath} has FS_IMMUTABLE set")
 
-					sys(f"lsattr -d {filepath}")
-					print(f"note: {filepath}'s attrs above")
+					with utils.io_lock:
+						subprocess.call(["lsattr", "-d", filepath])
+						print(f"note: {filepath}'s attrs above")
+
 					set_to_extent = bool_input(f"WARNING: {filepath}'s attributes are not [FS_EXTENT] or [FS_EXTENT | FS_INDEX], set to [FS_EXTENT] ?")
 
 					if set_to_extent:
 						set_file_flags(filepath, FS_EXTENT_FL)
-						print("flags set")
+						with utils.io_lock:
+							print("flags set")
 
 			except Exception:
 				warn(f"could not ioctl {filepath} for querying attributes")
@@ -263,7 +266,7 @@ def vsftpd_config():
 
 
 def nginx_config():
-	print("nginx auto-config not implemented yet")
+	with utils.io_lock: print("nginx auto-config not implemented yet")
 
 def apache2_config():
 	conf = open("/etc/apache2/apache2.conf", 'r').read()
@@ -844,7 +847,7 @@ def run_module(name: str) -> None:
 
 	with utils.io_lock: print(f"module {name} complete, thread will be freed soon")
 
-def sigint_handler() -> None:
+def sigint_handler(sig, frame) -> None:
 	with utils.io_lock:
 		print("All standard I/O operations on threads paused")
 
