@@ -847,25 +847,22 @@ def run_module(name: str) -> None:
 	with utils.io_lock: print(f"module {name} complete, thread will be freed soon")
 
 def sigint_handler(sig, frame) -> None:
-	with utils.io_lock:
-		print("All standard I/O operations on threads paused")
+	print("Note: threads are NOT paused")
 
-		while 1:
-			print("What would you like to do?")
-			option = input("e (exit), s (status), anything else for continue ").lower()
+	while 1:
+		print("What would you like to do?")
+		option = input("e (exit), s (status), anything else for continue ").lower()
 
-			if option == 'e': exit(0)
+		if option == 'e': exit(0)
 
-			if option == 's':
-				for i, (name, _) in enumerate(waiting_threads):
-					print(f"Thread {i}: {name}")
+		if option == 's':
+			for i, (name, _) in enumerate(waiting_threads):
+				print(f"Thread {i}: {name}")
 
-				if utils.running_apt:
-					print(f"APT running in module {utils.running_apt}")
+			if utils.running_apt:
+				print(f"APT running in module {utils.running_apt}")
 
-				continue
-
-			return
+			continue
 		
 signal.signal(signal.SIGINT, sigint_handler)
 
