@@ -12,7 +12,7 @@ import subprocess
 import threading
 from typing import Dict, List
 from utils import (
-	apt, bool_input, bool_input_nolock, get_list_input, removeprefix_compat, 
+	apt, bool_input, bool_input_nolock, get_list_input, get_list_input_nolock, removeprefix_compat, 
 	rmrf, set_config_variable, sys, _sys,
 	warn, failure, threaded_input,
 	get_usertype_input
@@ -490,9 +490,9 @@ def user_management(): # TODO: log all new
 				print(f"ignoring known system group {group.gr_name} by default, continuing")
 				continue
 
-			if bool_input(f"group {group.gr_name} has the following users: {', '.join(group.gr_mem)}, edit? (y/n) "):
-				rem_members = get_list_input("Enter a member to remove (empty for none/continue): ")
-				add_members = get_list_input("Enter a member to add (empty for none/continue): ")
+			if bool_input_nolock(f"group {group.gr_name} has the following users: {', '.join(group.gr_mem)}, edit? (y/n) "):
+				rem_members = get_list_input_nolock("Enter a member to remove (empty for none/continue): ")
+				add_members = get_list_input_nolock("Enter a member to add (empty for none/continue): ")
 
 				for member in rem_members:
 					sys(f"deluser {member} {group.gr_name}")
@@ -647,8 +647,6 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 	else:
 		apt.install("libpam-pwquality", "libpam-fail2ban", "libpam-modules")
 
-
-
 		try:
 			pwquality_conf = open("/etc/security/pwquality.conf", 'r').read()
 
@@ -724,6 +722,11 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 	# FOR ALL VERSIONS
 
 	sys("passwd -dl root")
+
+	with utils.io_lock:
+		sys("pam-auth-update --force")
+		sys("pam-auth-update --force")
+
 
 def kernel_harden():
 	sys(
@@ -847,24 +850,27 @@ def run_module(name: str) -> None:
 	with utils.io_lock: print(f"module {name} complete, thread will be freed soon")
 
 def sigint_handler(sig, frame) -> None:
-	print("Note: threads are NOT paused")
+	print("ATTEMPTING TO ACQUIRE I/O LOCK")
 
-	while 1:
-		print("What would you like to do?")
-		option = input("e (exit), s (status), anything else for continue ").lower()
+	with utils.io_lock:
+		print("All standard I/O operations on threads paused")
 
-		if option == 'e': exit(0)
+		while 1:
+			print("What would you like to do?")
+			option = input("e (exit), s (status), anything else for continue ").lower()
 
-		if option == 's':
-			for i, (name, _) in enumerate(waiting_threads):
-				print(f"Thread {i}: {name}")
+			if option == 'e': exit(0)
 
-			if utils.running_apt:
-				print(f"APT running in module {utils.running_apt}")
+			if option == 's':
+				for i, (name, _) in enumerate(waiting_threads):
+					print(f"Thread {i}: {name}")
 
-			continue
+				if utils.running_apt:
+					print(f"APT running in module {utils.running_apt}")
 
-		return
+				continue
+
+			return
 		
 signal.signal(signal.SIGINT, sigint_handler)
 

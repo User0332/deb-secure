@@ -48,7 +48,7 @@ def bool_input_nolock(prompt: str) -> bool:
 		if inp in ('n', "no"): return False
 
 		print("Invalid Input!")
-		
+
 def bool_input(prompt: str) -> bool:
 	with io_lock: return bool_input_nolock(prompt)
 		
@@ -128,22 +128,24 @@ def generate_passwd(user: str):
 
 	return passwd, file
 
-def get_list_input(prompt: str) -> List[str]:
+def get_list_input_nolock(prompt: str) -> List[str]:
 	inputs: List[str] = []
 
-	with io_lock:
-		stdout.flush()
+	stdout.flush()
 
-		while 1:
-			print(f"[{thread_local.current_module}] {prompt}", end="", flush=True)
+	while 1:
+		print(f"[{thread_local.current_module}] {prompt}", end="", flush=True)
 
-			inp = input()
+		inp = input()
 
-			if not inp: break
+		if not inp: break
 
-			inputs.append(inp)
+		inputs.append(inp)
 
 	return inputs
+
+def get_list_input(prompt: str) -> List[str]:
+	with io_lock: return get_list_input_nolock(prompt)
 
 def removeprefix_compat(string: str, prefix: str):
 	if string.startswith(prefix):
