@@ -863,6 +863,8 @@ def sigint_handler(sig, frame) -> None:
 				print(f"APT running in module {utils.running_apt}")
 
 			continue
+
+		return
 		
 signal.signal(signal.SIGINT, sigint_handler)
 
