@@ -3,6 +3,7 @@ import glob
 import pwd
 import fcntl
 import grp
+import signal
 import struct
 import re
 import os
@@ -843,7 +844,30 @@ def run_module(name: str) -> None:
 
 	with utils.io_lock: print(f"module {name} complete, thread will be freed soon")
 
-waiting_threads: list[threading.Thread] = []
+def sigint_handler() -> None:
+	with utils.io_lock:
+		print("All standard I/O operations on threads paused")
+
+		while 1:
+			print("What would you like to do?")
+			option = input("e (exit), s (status), anything else for continue ").lower()
+
+			if option == 'e': exit(0)
+
+			if option == 's':
+				for i, (name, _) in enumerate(waiting_threads):
+					print(f"Thread {i}: {name}")
+
+				if utils.running_apt:
+					print(f"APT running in module {utils.running_apt}")
+
+				continue
+
+			return
+		
+signal.signal(signal.SIGINT, sigint_handler)
+
+waiting_threads: list[tuple[str, threading.Thread]] = []
 
 for module in modules:	
 	while len(waiting_threads) == MAX_THREADS:
@@ -857,4 +881,4 @@ for module in modules:
 
 # TODO: have the user input various services that are required
 # TODO: see old script file
-# TODO: log errors
+# TODO: log errors & redirect command output to log file

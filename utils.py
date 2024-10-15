@@ -10,6 +10,8 @@ io_lock = threading.Lock()
 
 thread_local = threading.local()
 
+running_apt: str = None
+
 def debug(msg: str):
 	with io_lock: print(f"debug: {msg}")
 
@@ -61,8 +63,12 @@ class _apt:
 		self.lock = threading.Lock()
 
 	def __call__(self, cmd: str):
-		with self.lock:
-			try: return subprocess.call(["apt", *cmd.split()], stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
+			try:
+				running_apt = thread_local.current_module
+				res = subprocess.call(["apt", *cmd.split()], stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
+				running_apt = None
+
+				return res
 			except OSError as e: failure(e)
 
 	def install(self, *packages: str): return self(f"install -y {' '.join(packages)}")
