@@ -878,7 +878,7 @@ for module in modules:
 	next_task = threading.Thread(target=run_module, args=(module,))
 	next_task.start()
 
-	waiting_threads.append(next_task)
+	waiting_threads.append((module, next_task))
 
 # TODO: have the user input various services that are required
 # TODO: see old script file
