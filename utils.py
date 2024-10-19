@@ -76,7 +76,10 @@ class _apt:
 
 	def install(self, *packages: str): return self(f"install -y {' '.join(packages)}")
 
-	def remove(self, *packages: str): return self(f"remove -y {' '.join(packages)}")
+	def remove(self, *packages: str):
+		package_str = ' '.join(packages)
+		self(f"remove -y {package_str}")
+		sys(f"dpkg --purge {package_str}")
 
 	def autoremove(self): return self("autoremove -y")
 	

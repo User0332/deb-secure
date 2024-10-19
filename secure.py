@@ -193,6 +193,13 @@ def gsettings_and_gdm_config(): # TODO: log
 	sys("gsettings set org.gnome.settings-daemon.plugins.media-keys logout []")
 	sys("dconf update")
 
+	open("/etc/gdm3/custom.conf", 'w').write(
+		set_config_variable(
+			open("/etc/gdm3/custom.conf", 'r'),
+			"AutomaticLoginEnable", "false", '='
+		)
+	)
+
 def time_config(): # TODO: V-260519, V-260520, V-260521
 	apt.install("chrony")
 
