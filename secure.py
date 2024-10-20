@@ -103,6 +103,9 @@ SSH_NONDEFAULT_PORT = 4097
 
 OS_VERSION_NAME: str = re.search("VERSION_CODENAME=(\w*)", open("/etc/os-release", 'r').read()).group(1)
 
+if OS_VERSION_NAME == "vanessa":
+	OS_VERSION_NAME = "jammy"
+
 def get_file_flags(filename: str) -> int:
 	if os.path.isfile(filename):
 		return struct.unpack(
