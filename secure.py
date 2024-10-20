@@ -598,7 +598,9 @@ def file_permissions(): # TODO: V-260489, V-260490, V-260491
 	sys("chmod 440 /etc/sudoers")
 	sys("chmod 444 /etc/machine-id")
 
-
+	sys("chmod 600 /etc/ssh/ssh_host_rsa_key")
+	sys("chmod 600 /etc/ssh/ssh_host_ecdsa_key")
+	sys("chmod 600 /etc/ssh/ssh_host_ed25519_key")
 
 	sys("chown -R root:root /usr/sbin /usr/bin /usr/local/bin /usr/local/sbin /lib /lib64 /usr/lib")
 	sys("chmod -R 755 /usr/sbin /usr/bin /usr/local/bin /usr/local/sbin /lib /lib64 /usr/lib")
@@ -877,7 +879,7 @@ def run_module(name: str) -> None:
 		(name, threading.current_thread())
 	)
 
-def sigint_handler(sig, frame) -> None:
+def sigint_handler():
 	try:
 		print("ATTEMPTING TO ACQUIRE I/O LOCK")
 
@@ -902,13 +904,13 @@ def sigint_handler(sig, frame) -> None:
 				return
 	except KeyboardInterrupt: return
 		
-signal.signal(signal.SIGINT, sigint_handler)
-
 waiting_threads: list[tuple[str, threading.Thread]] = []
 
-for module in modules:	
-	while len(waiting_threads) == MAX_THREADS: pass
-		
+for module in modules:
+	while len(waiting_threads) == MAX_THREADS:
+		try: pass
+		except KeyboardInterrupt: sigint_handler()
+
 	next_task = threading.Thread(target=run_module, args=(module,))
 	next_task.start()
 
