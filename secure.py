@@ -209,12 +209,16 @@ def gsettings_and_gdm_config(): # TODO: log
 	sys("gsettings set org.gnome.settings-daemon.plugins.media-keys logout []")
 	sys("dconf update")
 
-	open("/etc/gdm3/custom.conf", 'w').write(
-		set_config_variable(
-			open("/etc/gdm3/custom.conf", 'r'),
-			"AutomaticLoginEnable", "false", '='
+	try:
+		gdm_config = open("/etc/gdm3/custom.conf", 'r').read()
+
+		open("/etc/gdm3/custom.conf", 'w').write(
+			set_config_variable(
+				gdm_config,
+				"AutomaticLoginEnable", "false", '='
+			)
 		)
-	)
+	except FileNotFoundError: pass # we are not using gdm3
 
 def time_config(): # TODO: V-260519, V-260520, V-260521
 	apt.install("chrony")
