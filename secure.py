@@ -624,14 +624,10 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 
 		open("/etc/login.defs", 'w').write(conf)
-
-
 	except OSError as e: failure(e)
 
 	if OS_VERSION_NAME == "bionic":
 		apt.install("libpam-cracklib", "libpam-modules") 
-
-
 
 		try:
 			conf = open("/etc/pam.d/common-password", 'r').read()
@@ -746,41 +742,8 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 	sys("passwd -dl root")
 
-	with utils.io_lock:
-		sys("pam-auth-update --force")
-		sys("pam-auth-update --force")
-
 
 def kernel_harden():
-	"""
-	sysctl -w  dev.tty.ldisc_autoload=0
-sysctl -w  fs.protected_fifos=2
-sysctl -w  fs.protected_hardlinks=1
-sysctl -w  fs.protected_regular=2
-sysctl -w  fs.protected_symlinks=1
-sysctl -w  fs.suid_dumpable=0
-sysctl -w  kernel.core_uses_pid=1
-sysctl -w  kernel.ctrl-alt-del=0
-sysctl -w  kernel.dmesg_restrict=1
-sysctl -w  kernel.kptr_restrict=2
-sysctl -w  kernel.perf_event_paranoid=3
-sysctl -w  kernel.randomize_va_space=2
-sysctl -w  kernel.sysrq=0
-sysctl -w  kernel.unprivileged_bpf_disabled=1
-sysctl -w  kernel.yama.ptrace_scope=1
-sysctl -w  net.core.bpf_jit_harden=2
-sysctl -w  net.ipv4.conf.all.bootp_relay=0
-sysctl -w  net.ipv4.conf.all.log_martians=1
-sysctl -w  net.ipv4.conf.all.mc_forwarding=0
-sysctl -w  net.ipv4.conf.all.proxy_arp=0
-sysctl -w  net.ipv4.conf.all.rp_filter=1
-sysctl -w  net.ipv4.conf.default.log_martians=1
-sysctl -w  net.ipv4.icmp_echo_ignore_broadcasts=1
-sysctl -w  net.ipv4.icmp_ignore_bogus_error_responses=1
-sysctl -w  net.ipv6.conf.default.accept_redirects=0
-sysctl -w  net.ipv6.conf.default.accept_source_route=0
-sysctl -w  net.ipv4.tcp_rfc1337=1"""
-
 	sys(
 """
 sysctl -w  dev.tty.ldisc_autoload=0

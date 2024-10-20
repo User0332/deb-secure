@@ -1,3 +1,4 @@
+from pdb import run
 import re
 import secrets
 import glob
@@ -66,6 +67,7 @@ class _apt:
 		self.lock = threading.Lock()
 
 	def __call__(self, cmd: str):
+			global running_apt
 			try:
 				running_apt = thread_local.current_module
 				res = subprocess.call(["apt", *cmd.split()], stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
