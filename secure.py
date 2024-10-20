@@ -29,7 +29,7 @@ DEFAULT_MODULES: List[str] = [
 	"apt-config", # done, this is first to ensure that all following modules can install the necessary packages
 	"ctrl-alt-del", # done
 	"gsettings-and-gdm-config", # done
-	# "usb-security", # done
+	"usb-security", # done
 	# "time-config", # done
 	"grub-config",
 	"password-policy", # done -- has todos
@@ -94,7 +94,19 @@ IGNORE_GROUPS: List[str] = [
 	"sudo",
 	"operator",
 	"plugdev",
-	"users"
+	"users",
+
+	"kmem",
+	"voice",
+	"audio",
+	"dip",
+	"src",
+	"shadow",
+	"utmp",
+	"video",
+	"sasl",
+	"staff",
+	"nogroup"
 ]
 
 CONTINUE_PROMPT = "<enter to continue, CTRL-C at any time to exit> "
@@ -185,7 +197,8 @@ def file_attributes():
 				warn(f"could not ioctl {filepath} for querying attributes")
 
 def usb_security(): # TODO: log
-	open("/etc/modprobe.d/deb-secure.conf", 'w').write("install usb-storage /bin/false\nblacklist usb-storage")
+	# open("/etc/modprobe.d/deb-secure.conf", 'w').write("install usb-storage /bin/false\nblacklist usb-storage")
+	pass
 
 def gsettings_and_gdm_config(): # TODO: log
 	apt.install("dconf-cli")
@@ -412,6 +425,8 @@ def user_management(): # TODO: log all new
 	admins = get_list_input("Enter an admin's name (blank for none/continue): ")
 	users = get_list_input("Enter non-privileged user's name (blank for none/continue): ")
 
+	all_authorized_users = [*admins, *users]
+
 	with utils.io_lock:
 		for user in pwd.getpwall():
 			name = user.pw_name
@@ -422,6 +437,8 @@ def user_management(): # TODO: log all new
 
 			if name == getpass.getuser(): # redundant case because the script must be run as root
 				print(f"ignoring user {name} (self), continuing")
+
+				if name in admins: admins.remove(name)
 				continue
 
 			if user.pw_uid == 0: # non-root uid 0 user, must delete
@@ -429,8 +446,6 @@ def user_management(): # TODO: log all new
 
 				if remove:
 					sys(f"deluser {name}")
-
-
 
 				continue
 
@@ -489,14 +504,14 @@ def user_management(): # TODO: log all new
 
 	rmrf("tmppass.txt")
 
-	groups_to_add = get_list_input("Enter a group you want to create (empty for none/continue): ")
-
-	for groupname in groups_to_add:
-		sys(f"groupadd {groupname}")
-
 	with utils.io_lock:
+		groups_to_add = get_list_input_nolock("Enter a group you want to create (empty for none/continue): ")
+
+		for groupname in groups_to_add:
+			sys(f"groupadd {groupname}")
+
 		for group in grp.getgrall():
-			if group.gr_name in IGNORE_GROUPS or (min_sys_uid <= group.gr_gid <= max_sys_uid):
+			if group.gr_name in IGNORE_GROUPS or (min_sys_uid <= group.gr_gid <= max_sys_uid) or (group.gr_name in all_authorized_users):
 				print(f"ignoring known system group {group.gr_name} by default, continuing")
 				continue
 
@@ -519,8 +534,6 @@ def helpful_tools():
 		"stacer",
 		"gufw"
 	)
-
-
 
 
 def package_cleaner(): # remove bad packages
@@ -739,6 +752,35 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 
 def kernel_harden():
+	"""
+	sysctl -w  dev.tty.ldisc_autoload=0
+sysctl -w  fs.protected_fifos=2
+sysctl -w  fs.protected_hardlinks=1
+sysctl -w  fs.protected_regular=2
+sysctl -w  fs.protected_symlinks=1
+sysctl -w  fs.suid_dumpable=0
+sysctl -w  kernel.core_uses_pid=1
+sysctl -w  kernel.ctrl-alt-del=0
+sysctl -w  kernel.dmesg_restrict=1
+sysctl -w  kernel.kptr_restrict=2
+sysctl -w  kernel.perf_event_paranoid=3
+sysctl -w  kernel.randomize_va_space=2
+sysctl -w  kernel.sysrq=0
+sysctl -w  kernel.unprivileged_bpf_disabled=1
+sysctl -w  kernel.yama.ptrace_scope=1
+sysctl -w  net.core.bpf_jit_harden=2
+sysctl -w  net.ipv4.conf.all.bootp_relay=0
+sysctl -w  net.ipv4.conf.all.log_martians=1
+sysctl -w  net.ipv4.conf.all.mc_forwarding=0
+sysctl -w  net.ipv4.conf.all.proxy_arp=0
+sysctl -w  net.ipv4.conf.all.rp_filter=1
+sysctl -w  net.ipv4.conf.default.log_martians=1
+sysctl -w  net.ipv4.icmp_echo_ignore_broadcasts=1
+sysctl -w  net.ipv4.icmp_ignore_bogus_error_responses=1
+sysctl -w  net.ipv6.conf.default.accept_redirects=0
+sysctl -w  net.ipv6.conf.default.accept_source_route=0
+sysctl -w  net.ipv4.tcp_rfc1337=1"""
+
 	sys(
 """
 sysctl -w  dev.tty.ldisc_autoload=0
