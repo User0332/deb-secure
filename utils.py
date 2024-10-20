@@ -70,7 +70,7 @@ class _apt:
 			global running_apt
 			try:
 				running_apt = thread_local.current_module
-				res = subprocess.call(["apt", *cmd.split()], stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
+				res = subprocess.call(["apt", *cmd.split()], stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'), stdin=open("/dev/null", 'r'))
 				running_apt = None
 
 				return res
