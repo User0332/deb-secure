@@ -537,7 +537,7 @@ def helpful_tools():
 
 
 def package_cleaner(): # remove bad packages
-	apt.remove(
+	bad_packages = (
 		"samba-common", "icecast2",
 		"zangband", "libpcap-dev", "ophcrack",
 		"hydra", "deluge", "wireshark", "nmap",
@@ -547,6 +547,11 @@ def package_cleaner(): # remove bad packages
 		"ruby-akismet", "gameconqueror", "telnetd",
 		"rsh-server", "mines", "mahjongg", "sudoku"
 	)
+
+	for package in bad_packages:
+		apt.remove(package)
+
+		with utils.io_lock: print(f"Attempted to remove package {package}")
 
 	apt.autoremove()
 
@@ -706,7 +711,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 				auth_conf = auth_conf.replace(pam_faildelay, f"auth     required     pam_faildelay.so     delay=4000000")
 			except AttributeError:
-				failure("pam_unix or pam_faildelay line doesn't exist in common-auth")
+				failure("pam_unix or pam_faildelay line doesn't exist in common-auth" # fix this
 
 			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
 
