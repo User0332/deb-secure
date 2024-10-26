@@ -94,7 +94,10 @@ class _apt:
 	def upgrade(self): return self("upgrade -y")
 
 def _sys(cmd: str, **kwargs):
-	try: return subprocess.call(cmd.split(), **kwargs, stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'), stdin=open("/dev/null", 'r'))
+	if "stdin" not in kwargs:
+		kwargs["stdin"] = open("/dev/null", 'r')
+		
+	try: return subprocess.call(cmd.split(), **kwargs, stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
 	except OSError as e: failure(e)
 
 def sys(cmds: str):

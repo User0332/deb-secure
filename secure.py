@@ -544,7 +544,7 @@ def package_cleaner(): # remove bad packages
 	bad_packages = (
 		"samba-common", "icecast2",
 		"zangband", "libpcap-dev", "ophcrack",
-		"hydra", "deluge", "wireshark", "nmap",
+		"hydra", "deluge", "deluge-gtk", "wireshark", "nmap",
 		"manaplus", "ettercap", "ettercap-graphical", "zenmap",
 		"freeciv", "kismet-plugins",
 		"libnet-akismet-perl",
@@ -608,8 +608,6 @@ def file_permissions(): # TODO: V-260489, V-260490, V-260491
 	sys("chmod 4755 /usr/bin/sudo")
 	sys("chmod 4755 /usr/bin/pkexec")
 
-
-
 	sys("chown root:syslog /var/log")
 	sys("chmod 750 /var/log")
 
@@ -621,6 +619,8 @@ def file_permissions(): # TODO: V-260489, V-260490, V-260491
 
 def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573), TODO: fix logging for all
 	# TODO: tmpdir config (should it be session required or session optional?)
+	# TODO: configure fail2ban
+
 	apt.install("libpam-tmpdir")
 	# 
 
@@ -675,7 +675,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 		except OSError as e: failure(e)		
 	else:
-		apt.install("libpam-pwquality", "libpam-fail2ban", "libpam-modules")
+		apt.install("libpam-pwquality", "libpam-modules")
 
 		try:
 			pwquality_conf = open("/etc/security/pwquality.conf", 'r').read()
@@ -713,11 +713,14 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 				auth_conf = auth_conf.replace(pam_unix, f"{pam_unix}\n\nauth     [default=die]  pam_faillock.so authfail\nauth     sufficient          pam_faillock.so authsucc\n")
 			
-				pam_faildelay = re.search(r"^.*pam_faildelay\.so.*$", auth_conf, re.MULTILINE).group()
+				try:
+					pam_faildelay = re.search(r"^.*pam_faildelay\.so.*$", auth_conf, re.MULTILINE).group()
 
-				auth_conf = auth_conf.replace(pam_faildelay, f"auth     required     pam_faildelay.so     delay=4000000")
+					auth_conf = auth_conf.replace(pam_faildelay, "auth     required     pam_faildelay.so     delay=4000000")
+				except AttributeError:
+					auth_conf = "auth     required     pam_faildelay.so     delay=4000000\n\n\n"+auth_conf
 			except AttributeError:
-				failure("pam_unix or pam_faildelay line doesn't exist in common-auth") # fix this
+				failure("pam_unix  line doesn't exist in common-auth") # fix this
 
 			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
 
@@ -735,16 +738,19 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 			passwd_conf = open("/etc/pam.d/common-password", 'r').read()
 		
-			try:
-				pam_pwquality = re.search(r"^.*pam_pwqality\.so.*$", passwd_conf, re.MULTILINE).group()
+			try:				
 				pam_unix = re.search(r"^.*\[success=1 default=ignore\]\s*pam_unix\.so.*$", conf, re.MULTILINE).group()
-
-				passwd_conf = passwd_conf.replace(pam_pwquality, f"password requisite pam_pwquality.so retry=3")
 				passwd_conf = passwd_conf.replace(pam_unix, f"password [success=1 default=ignore] pam_unix.so obscure sha512 shadow remember=5 rounds=5000")
-			
+
+				try:
+					pam_pwquality = re.search(r"^.*pam_pwqality\.so.*$", passwd_conf, re.MULTILINE).group()
+					passwd_conf = passwd_conf.replace(pam_pwquality, "password requisite pam_pwquality.so retry=3")
+				except AttributeError:
+					passwd_conf = "password requisite pam_pwquality.so retry=3\n\n"+passwd_conf
+
 				passwd_conf = passwd_conf.replace("nullok", '')
 			except AttributeError:
-				failure("pam_pwquality or pam_unix line doesn't exist in common-password")
+				failure("pam_unix line doesn't exist in common-password")
 
 			open("/etc/pam.d/common-password", 'w').write(passwd_conf)
 		except OSError as e: failure(e)
@@ -875,8 +881,15 @@ def run_module(name: str) -> None:
 
 	with utils.io_lock: print(f"module {name} complete, thread will be freed soon")
 
+	target_thread = None
+
+	for module, thread in waiting_threads:
+		if module == name:
+			target_thread = thread
+
+
 	waiting_threads.remove(
-		(name, threading.current_thread())
+		(name, target_thread)
 	)
 
 def sigint_handler():
