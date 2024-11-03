@@ -244,12 +244,20 @@ def service_management(): # TODO: start stopped critical services
 
 	running_services = [removeprefix_compat(line, " [ + ]").strip() for line in subprocess.check_output(["service", "--status-all"]).decode().splitlines() if line.startswith(" [ + ]")]
 
+	stopped: list[str] = []
+
 	for servicename in REMOVE_IF_NOT_CRITICAL:
 		if servicename in running_services and servicename not in services:
 			if bool_input(f"Non-critical service {servicename} found, stop? "):
 				sys(f"systemctl stop {servicename}")
+				sys(f"systemctl disable {servicename}")
+				stopped.append(servicename)
 
 	for servicename, packagename in REMOVE_IF_NOT_CRITICAL.items():
+		if servicename in stopped: # autoremove those that we stopped
+			apt.remove(packagename)
+			continue
+
 		if servicename not in services:
 			if bool_input(f"Non-critical service package {packagename} may be installed, try to remove? "):
 				apt.remove(packagename)
@@ -548,7 +556,8 @@ def package_cleaner(): # remove bad packages
 		"freeciv", "kismet-plugins",
 		"libnet-akismet-perl",
 		"ruby-akismet", "gameconqueror", "telnetd",
-		"rsh-server", "mines", "mahjongg", "sudoku"
+		"rsh-server", "mines", "mahjongg", "sudoku", "aisleriot",
+		"netcat-openbsd", "netcat-traditional", "ncat"
 	)
 
 	for package in bad_packages:
@@ -703,30 +712,38 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 			auth_conf = open("/etc/pam.d/common-auth", 'r').read()
 
-			for line in re.finditer(r"pam_faillock\.so.*$", auth_conf, re.MULTILINE): # clear all faillock
+			for line in re.finditer(r"^.*pam_faillock\.so.*$", auth_conf, re.MULTILINE): # clear all faillock lines
 				auth_conf = auth_conf.replace(line.group(), '')
 
 			try:
 				pam_unix = re.search(r"^.*pam_unix\.so.*$", auth_conf, re.MULTILINE).group()
 
-				auth_conf = auth_conf.replace(pam_unix, f"auth    required    pam_faillock.so preauth silent audit deny=5 unlock_time=1800\n\n{pam_unix}")
+				auth_conf = auth_conf.replace(pam_unix, f"auth	required	pam_faildelay.so delay=5000\nauth    required    pam_faillock.so preauth silent audit deny=5 unlock_time=1800\n\n{pam_unix}")
 			except AttributeError:
 				failure("pam_unix line doesn't exist in common-auth") # fix this
 
-			# TODO: fix faildelay conf
-			# try:
-			# 	pam_faildelay = re.search(r"^.*pam_faildelay\.so.*$", auth_conf, re.MULTILINE).group()
+			try:
+				pam_deny = re.search(r"^.*pam_deny\.so.*$", auth_conf, re.MULTILINE).group()
 
-			# 	auth_conf = auth_conf.replace(pam_faildelay, "auth     required     pam_faildelay.so     delay=4000000")
-			# except AttributeError:
-			# 	auth_conf = "auth     required     pam_faildelay.so     delay=4000000\n\n\n"+auth_conf
+				auth_conf = auth_conf.replace(pam_unix, f"auth    [default=die] pam_faillock.so authfail audit deny=5 unlock_time=1800\nauth    sufficient pam_faillock.so authsucc audit deny=5 unlock_time=1800\n\n{pam_deny}")
+			except AttributeError:
+				failure("pam_deny line doesn't exist in common-auth") # fix this
 
-			# TODO: figure out why "auth    [default=die]     pam_faillock.so authfail audit deny=5 unlock_time=1800" cannot be added
 			auth_conf+="\n\naccount required   pam_faillock.so"
 
 			auth_conf = auth_conf.replace("nullok", '')
 
 			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
+
+
+			acc_conf = open("/etc/pam.d/common-account", 'r').read()
+
+			for line in re.finditer(r"^.*pam_faillock\.so.*$", acc_conf, re.MULTILINE): # clear all faillock lines
+				acc_conf = acc_conf.replace(line.group(), '')
+
+			auth_conf+="\n\naccount required pam_faillock.so"
+
+			open("/etc/pam.d/common-account").write(acc_conf)
 
 
 			login_conf = open("/etc/pam.d/login", 'r').read()
@@ -764,7 +781,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 	sys("passwd -dl root")
 
 
-def kernel_harden():
+def kernel_harden(): # removed sysctl -w kernel.modules_disabled=1 because it disallows nft to run
 	sys(
 """
 sysctl -w  dev.tty.ldisc_autoload=0
@@ -777,7 +794,6 @@ sysctl -w  kernel.core_uses_pid=1
 sysctl -w  kernel.ctrl-alt-del=0
 sysctl -w  kernel.dmesg_restrict=1
 sysctl -w  kernel.kptr_restrict=2
-sysctl -w  kernel.modules_disabled=1
 sysctl -w  kernel.perf_event_paranoid=3
 sysctl -w  kernel.randomize_va_space=2
 sysctl -w  kernel.sysrq=0
