@@ -335,9 +335,9 @@ APT::Sandbox::Seccomp "1";
 
 	open("/etc/apt/apt.conf.d/50unattended-upgrades", 'w').write(conf)
 
-	apt_sources = open("/etc/apt/sources.list", 'r').read()
+	sys("cp /etc/apt/sources.list /etc/apt/sources.list.old")
 
-	apt_sources+=f"""
+	apt_sources = f"""
 deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME} main restricted
 
 # Updates for main and restricted packages
@@ -360,11 +360,7 @@ deb http://security.ubuntu.com/ubuntu {OS_VERSION_NAME}-security multiverse
 deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-backports main restricted universe multiverse
 """
 
-	# Remove duplicates
-
-	apt_sources_iter = dict.fromkeys(apt_sources.splitlines()).__iter__()
-
-	open("/etc/apt/sources.list", 'a').writelines(apt_sources_iter)
+	open("/etc/apt/sources.list", 'w').write(apt_sources)
 
 
 def sshd_config(): # TODO: use regex to make sure necessary lines are uncommented, add more, including keys for users
