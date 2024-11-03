@@ -335,9 +335,9 @@ APT::Sandbox::Seccomp "1";
 
 	open("/etc/apt/apt.conf.d/50unattended-upgrades", 'w').write(conf)
 
+	apt_sources = open("/etc/apt/sources.list", 'r').read()
 
-
-	apt_sources = f"""
+	apt_sources+=f"""
 deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME} main restricted
 
 # Updates for main and restricted packages
@@ -360,9 +360,11 @@ deb http://security.ubuntu.com/ubuntu {OS_VERSION_NAME}-security multiverse
 deb http://archive.ubuntu.com/ubuntu/ {OS_VERSION_NAME}-backports main restricted universe multiverse
 """
 
-	open("/etc/apt/sources.list", 'a').write(apt_sources)
+	# Remove duplicates
 
-			
+	apt_sources_iter = dict.fromkeys(apt_sources.splitlines()).__iter__()
+
+	open("/etc/apt/sources.list", 'a').writelines(apt_sources_iter)
 
 
 def sshd_config(): # TODO: use regex to make sure necessary lines are uncommented, add more, including keys for users
@@ -725,6 +727,8 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 			# TODO: figure out why "auth    [default=die]     pam_faillock.so authfail audit deny=5 unlock_time=1800" cannot be added
 			auth_conf+="\n\naccount required   pam_faillock.so"
+
+			auth_conf = auth_conf.replace("nullok", '')
 
 			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
 

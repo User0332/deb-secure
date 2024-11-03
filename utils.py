@@ -1,3 +1,4 @@
+import os
 import re
 import secrets
 import glob
@@ -69,7 +70,7 @@ class _apt:
 			global running_apt
 			try:
 				running_apt = thread_local.current_module
-				res = subprocess.call(["apt", *cmd.split()], stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'), stdin=open("/dev/null", 'r'))
+				res = subprocess.call([f"apt {cmd}"], shell=True, stdout=open(os.devnull, 'w'), stderr=open(os.devnull, 'w'), stdin=open(os.devnull, 'r'))
 				running_apt = None
 
 				return res
@@ -94,9 +95,9 @@ class _apt:
 
 def _sys(cmd: str, **kwargs):
 	if "stdin" not in kwargs:
-		kwargs["stdin"] = open("/dev/null", 'r')
+		kwargs["stdin"] = open(os.devnull, 'r')
 
-	try: return subprocess.call(cmd.split(), **kwargs, stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
+	try: return subprocess.call(cmd, **kwargs, shell=True, stdout=open(os.devnull, 'w'), stderr=open(os.devnull, 'w'))
 	except OSError as e: failure(e)
 
 def sys(cmds: str):
