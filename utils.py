@@ -1,4 +1,3 @@
-from pdb import run
 import re
 import secrets
 import glob
@@ -14,13 +13,13 @@ thread_local = threading.local()
 running_apt: str = None
 
 def debug(msg: str):
-	with io_lock: print(f"debug: {msg}")
+	with io_lock: print(f"[{thread_local.current_module}] debug: {msg}")
 
 def failure(msg: str):
-	with io_lock: print(f"error: failed on module with {msg}")
+	with io_lock: print(f"[{thread_local.current_module}] error: {msg}")
 
 def warn(msg: str):
-	with io_lock: print(f"warning: module warned with {msg}")
+	with io_lock: print(f"[{thread_local.current_module}] warning: {msg}")
 
 def comment_all_of_pattern(conf: str, pattern: str) -> str:
 	for match in re.finditer(fr"^{pattern}$", conf, re.MULTILINE):
@@ -96,7 +95,7 @@ class _apt:
 def _sys(cmd: str, **kwargs):
 	if "stdin" not in kwargs:
 		kwargs["stdin"] = open("/dev/null", 'r')
-		
+
 	try: return subprocess.call(cmd.split(), **kwargs, stdout=open("/dev/null", 'w'), stderr=open("/dev/null", 'w'))
 	except OSError as e: failure(e)
 

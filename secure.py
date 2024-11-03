@@ -10,6 +10,7 @@ import os
 import getpass
 import subprocess
 import threading
+import time
 from typing import Dict, List
 from utils import (
 	apt, bool_input, bool_input_nolock, get_list_input, get_list_input_nolock, removeprefix_compat, 
@@ -633,7 +634,6 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 		conf = set_config_variable(conf, "ENCRYPT_METHOD", "SHA512")
 		conf = set_config_variable(conf, "UMASK", "077")
 
-
 		open("/etc/login.defs", 'w').write(conf)
 	except OSError as e: failure(e)
 
@@ -641,18 +641,18 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 		apt.install("libpam-cracklib", "libpam-modules") 
 
 		try:
-			conf = open("/etc/pam.d/common-password", 'r').read()
+			passwd_conf = open("/etc/pam.d/common-password", 'r').read()
 
 			try:
-				pam_unix = re.search(r"^.*\[success=1 default=ignore\]\s*pam_unix\.so.*$", conf, re.MULTILINE).group()
-				cracklib = re.search(r"pam_cracklib\.so.*$", conf, re.MULTILINE).group()
+				pam_unix = re.search(r"pam_unix\.so.*$", passwd_conf, re.MULTILINE).group()
+				cracklib = re.search(r"pam_cracklib\.so.*$", passwd_conf, re.MULTILINE).group()
 
-				conf = conf.replace(pam_unix, f"password [success=1 default=ignore] pam_unix.so obscure sha512 shadow remember=5 rounds=5000")
-				conf = conf.replace(cracklib, f"{cracklib} ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
+				passwd_conf = passwd_conf.replace(pam_unix, f"pam_unix.so obscure use_authtok try_first_pass yescrypt")
+				passwd_conf = passwd_conf.replace(cracklib, f"{cracklib} minlen=8 difok=3 dictcheck=1 ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1")
 
-				conf = conf.replace("nullok", '')
+				passwd_conf = passwd_conf.replace("nullok", '')
 
-				open("/etc/pam.d/common-password", 'w').write(conf)
+				open("/etc/pam.d/common-password", 'w').write(passwd_conf)
 
 
 			except (TypeError, AttributeError):
@@ -660,15 +660,15 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 		except OSError as e: failure(e)
 
 		try:
-			conf = open("/etc/pam.d/common-auth", 'r').read()
+			auth_conf = open("/etc/pam.d/common-auth", 'r').read()
 
 			try:
-				pam_tally2 = re.search(r"pam_tally2\.so.*$", conf, re.MULTILINE).group()
+				pam_tally2 = re.search(r"pam_tally2\.so.*$", auth_conf, re.MULTILINE).group()
 
-				conf = conf.replace(pam_tally2, f"{pam_tally2} deny=5 unlock_time=1800")
+				auth_conf = auth_conf.replace(pam_tally2, f"{pam_tally2} deny=5 unlock_time=1800")
 
 			except (TypeError, AttributeError):
-				conf+="\n\nauth required pam_tally2.so onerr=fail deny=5 unlock_time=1800"
+				auth_conf+="\n\nauth required pam_tally2.so onerr=fail deny=5 unlock_time=1800"
 
 			open("/etc/pam.d/common-auth", 'w').write(conf)
 
@@ -705,22 +705,26 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 			auth_conf = open("/etc/pam.d/common-auth", 'r').read()
 
-			for line in re.finditer(r"^.*pam_faillock\.so.*$", auth_conf, re.MULTILINE):
+			for line in re.finditer(r"pam_faillock\.so.*$", auth_conf, re.MULTILINE): # clear all faillock
 				auth_conf = auth_conf.replace(line.group(), '')
 
 			try:
 				pam_unix = re.search(r"^.*pam_unix\.so.*$", auth_conf, re.MULTILINE).group()
 
-				auth_conf = auth_conf.replace(pam_unix, f"{pam_unix}\n\nauth     [default=die]  pam_faillock.so authfail\nauth     sufficient          pam_faillock.so authsucc\n")
-			
-				try:
-					pam_faildelay = re.search(r"^.*pam_faildelay\.so.*$", auth_conf, re.MULTILINE).group()
-
-					auth_conf = auth_conf.replace(pam_faildelay, "auth     required     pam_faildelay.so     delay=4000000")
-				except AttributeError:
-					auth_conf = "auth     required     pam_faildelay.so     delay=4000000\n\n\n"+auth_conf
+				auth_conf = auth_conf.replace(pam_unix, f"auth    required    pam_faillock.so preauth silent audit deny=5 unlock_time=1800\n\n{pam_unix}")
 			except AttributeError:
-				failure("pam_unix  line doesn't exist in common-auth") # fix this
+				failure("pam_unix line doesn't exist in common-auth") # fix this
+
+			# TODO: fix faildelay conf
+			# try:
+			# 	pam_faildelay = re.search(r"^.*pam_faildelay\.so.*$", auth_conf, re.MULTILINE).group()
+
+			# 	auth_conf = auth_conf.replace(pam_faildelay, "auth     required     pam_faildelay.so     delay=4000000")
+			# except AttributeError:
+			# 	auth_conf = "auth     required     pam_faildelay.so     delay=4000000\n\n\n"+auth_conf
+
+			# TODO: figure out why "auth    [default=die]     pam_faillock.so authfail audit deny=5 unlock_time=1800" cannot be added
+			auth_conf+="\n\naccount required   pam_faillock.so"
 
 			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
 
@@ -739,14 +743,14 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 			passwd_conf = open("/etc/pam.d/common-password", 'r').read()
 		
 			try:				
-				pam_unix = re.search(r"^.*\[success=1 default=ignore\]\s*pam_unix\.so.*$", conf, re.MULTILINE).group()
-				passwd_conf = passwd_conf.replace(pam_unix, f"password [success=1 default=ignore] pam_unix.so obscure sha512 shadow remember=5 rounds=5000")
+				pam_unix = re.search(r"pam_unix\.so.*$", passwd_conf, re.MULTILINE).group()
+				passwd_conf = passwd_conf.replace(pam_unix, f"pam_unix.so obscure use_authtok try_first_pass yescrypt")
 
 				try:
-					pam_pwquality = re.search(r"^.*pam_pwqality\.so.*$", passwd_conf, re.MULTILINE).group()
-					passwd_conf = passwd_conf.replace(pam_pwquality, "password requisite pam_pwquality.so retry=3")
+					pam_pwquality = re.search(r"pam_pwquality\.so.*$", passwd_conf, re.MULTILINE).group()
+					passwd_conf = passwd_conf.replace(pam_pwquality, "pam_pwquality.so retry=3 minlen=15 difok=8 ucredit=-1 dcredit=-1 ocredit=-1 lcredit=-1 dictcheck=1")
 				except AttributeError:
-					passwd_conf = "password requisite pam_pwquality.so retry=3\n\n"+passwd_conf
+					passwd_conf = "password requisite pam_pwquality.so retry=3 minlen=15 difok=8 ucredit=-1 dcredit=-1 ocredit=-1 lcredit=-1 dictcheck=1\n\n"+passwd_conf
 
 				passwd_conf = passwd_conf.replace("nullok", '')
 			except AttributeError:
@@ -881,53 +885,47 @@ def run_module(name: str) -> None:
 
 	with utils.io_lock: print(f"module {name} complete, thread will be freed soon")
 
-	target_thread = None
+	del waiting_threads[name] 
 
-	for module, thread in waiting_threads:
-		if module == name:
-			target_thread = thread
+def sigint_handler(_=None, __=None):
+	print("ATTEMPTING TO ACQUIRE I/O LOCK")
 
+	with utils.io_lock:
+		print("All standard I/O operations on threads paused")
 
-	waiting_threads.remove(
-		(name, target_thread)
-	)
+		while 1:
+			print("What would you like to do?")
+			option = input("e (exit), s (status), anything else for continue ").lower()
 
-def sigint_handler():
-	try:
-		print("ATTEMPTING TO ACQUIRE I/O LOCK")
+			if option == 'e':
+				for mod, thread in waiting_threads.items():
+					print(f"Waiting for {mod} to complete")
+					thread.join()
 
-		with utils.io_lock:
-			print("All standard I/O operations on threads paused")
+				exit(0)
 
-			while 1:
-				print("What would you like to do?")
-				option = input("e (exit), s (status), anything else for continue ").lower()
+			if option == 's':
+				for i, (name, _) in enumerate(waiting_threads.items()):
+					print(f"Thread {i}: {name}")
 
-				if option == 'e': exit(0)
+				if utils.running_apt:
+					print(f"APT running in module {utils.running_apt}")
 
-				if option == 's':
-					for i, (name, _) in enumerate(waiting_threads):
-						print(f"Thread {i}: {name}")
+				continue
 
-					if utils.running_apt:
-						print(f"APT running in module {utils.running_apt}")
+			return
 
-					continue
+signal.signal(signal.SIGINT, sigint_handler)
 
-				return
-	except KeyboardInterrupt: return
-		
-waiting_threads: list[tuple[str, threading.Thread]] = []
+waiting_threads: dict[str, threading.Thread] = {}
 
 for module in modules:
-	while len(waiting_threads) == MAX_THREADS:
-		try: pass
-		except KeyboardInterrupt: sigint_handler()
+	while len(waiting_threads) == MAX_THREADS: pass
 
 	next_task = threading.Thread(target=run_module, args=(module,))
 	next_task.start()
 
-	waiting_threads.append((module, next_task))
+	waiting_threads[module] = next_task
 
 # TODO: have the user input various services that are required
 # TODO: see old script file
