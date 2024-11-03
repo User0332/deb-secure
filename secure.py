@@ -712,8 +712,8 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 			auth_conf = open("/etc/pam.d/common-auth", 'r').read()
 
-			for line in re.finditer(r"^.*pam_faillock\.so.*$", auth_conf, re.MULTILINE): # clear all faillock lines
-				auth_conf = auth_conf.replace(line.group(), '')
+			for line in re.finditer(r"^.*pam_fail\b(lock|delay)\b\.so.*$", auth_conf, re.MULTILINE): # clear all faillock and faildelay lines
+				auth_conf = auth_conf.replace(line.string(), '')
 
 			try:
 				pam_unix = re.search(r"^.*pam_unix\.so.*$", auth_conf, re.MULTILINE).group()
@@ -725,7 +725,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 			try:
 				pam_deny = re.search(r"^.*pam_deny\.so.*$", auth_conf, re.MULTILINE).group()
 
-				auth_conf = auth_conf.replace(pam_unix, f"auth    [default=die] pam_faillock.so authfail audit deny=5 unlock_time=1800\nauth    sufficient pam_faillock.so authsucc audit deny=5 unlock_time=1800\n\n{pam_deny}")
+				auth_conf = auth_conf.replace(pam_deny, f"auth    [default=die] pam_faillock.so authfail audit deny=5 unlock_time=1800\nauth    sufficient pam_faillock.so authsucc audit deny=5 unlock_time=1800\n\n{pam_deny}")
 			except AttributeError:
 				failure("pam_deny line doesn't exist in common-auth") # fix this
 
@@ -743,7 +743,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 			auth_conf+="\n\naccount required pam_faillock.so"
 
-			open("/etc/pam.d/common-account").write(acc_conf)
+			open("/etc/pam.d/common-account", 'w').write(acc_conf)
 
 
 			login_conf = open("/etc/pam.d/login", 'r').read()
