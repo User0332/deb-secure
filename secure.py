@@ -30,6 +30,7 @@ DEFAULT_MODULES: List[str] = [
 	"apt-config", # done, this is first to ensure that all following modules can install the necessary packages
 	"ctrl-alt-del", # done
 	"gsettings-and-gdm-config", # done
+	"lightdm",
 	"usb-security", # done
 	# "time-config", # done
 	"grub-config",
@@ -220,6 +221,15 @@ def gsettings_and_gdm_config(): # TODO: log
 			)
 		)
 	except FileNotFoundError: pass # we are not using gdm3
+
+def lightdm_config():
+		try:
+			lightdm_conf = open("/etc/lightdm/lightdm.conf", 'r').read()
+			lightdm_conf = set_config_variable(lightdm_conf, "allow-guest", "false", '=')
+			lightdm_conf = set_config_variable(lightdm_conf, "greeter-hide-users", "true", '=')
+
+			open("/etc/lightdm/lightdm.conf", 'w').write(lightdm_conf)
+		except FileNotFoundError: pass # we are not using gdm3
 
 def time_config(): # TODO: V-260519, V-260520, V-260521
 	apt.install("chrony")
@@ -888,6 +898,7 @@ module_lookup = {
 	"time-config": time_config,
 	"encrypt-partitions": encrypt_partitions,
 	"gsettings-and-gdm-config": gsettings_and_gdm_config,
+	"lightdm": lightdm_config,
 	"usb-security": usb_security,
 	"file-attributes": file_attributes
 }
