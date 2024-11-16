@@ -30,12 +30,12 @@ def comment_all_of_pattern(conf: str, pattern: str) -> str:
 
 def set_config_variable(conf: str, name: str, value: str, sep: str=' ') -> str:
 	try:
-		commented = re.search(fr"^#\s*{name}.*$", conf, re.MULTILINE).group()
+		commented = re.search(fr"^\s*#\s*{name}.*$", conf, re.MULTILINE).group()
 
 		return conf.replace(commented, f"{name}{sep}{value}")
 	except AttributeError:
 		try:
-			var = re.search(fr"^{name}.*$", conf, re.MULTILINE).group()
+			var = re.search(fr"^\s*{name}.*$", conf, re.MULTILINE).group()
 
 			return conf.replace(var, f"{name}{sep}{value}")
 		except AttributeError:

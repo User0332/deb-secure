@@ -318,7 +318,9 @@ def apache2_config():
 
 	conf = set_config_variable(conf, "ServerTokens", "Prod")
 	conf = set_config_variable(conf, "ServerSignature", "Off")
-	conf = set_config_variable(conf, "Header", "always unset X-Powered-By")
+	conf = set_config_variable(conf, "Header", "unset X-Powered-By")
+	conf = set_config_variable(conf, "Header", "edit Set-Cookie ^(.*)$ $1;HttpOnly;Secure")
+	conf = set_config_variable(conf, "Header", 'set X-XSS-Protection "1; mode=block"')
 	conf = set_config_variable(conf, "TraceEnable", "Off")
 
 	open("/etc/apache2/apache2.conf", 'w').write(conf)
