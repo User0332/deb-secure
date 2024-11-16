@@ -311,7 +311,40 @@ def vsftpd_config():
 
 
 def nginx_config():
-	with utils.io_lock: print("nginx auto-config not implemented yet")
+	default_secure_nginx_conf = """
+user www-data;
+worker_processes 4;
+pid /run/nginx.pid;
+
+events {
+	worker_connections 1024;
+}
+
+http {
+	sendfile on;
+	tcp_nopush off;
+	tcp_nodelay on;
+	keepalive_timeout 65;
+	types_hash_max_size 2048;
+	server_tokens off;
+
+	include /etc/nginx/mime.types;
+	default_type application/octet-stream;
+
+	ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+	ssl_prefer_server_ciphers on;
+
+	access_log /var/log/nginx/access.log;
+	error_log /var/log/nginx/error.log;
+
+	gzip off;
+
+	include /etc/nginx/conf.d/*.conf;
+	include /etc/nginx/sites-enabled/*;
+}
+"""
+	with open("/etc/nginx/nginx.conf", 'w') as f:
+		f.write(default_secure_nginx_conf)
 
 def apache2_config():
 	conf = open("/etc/apache2/apache2.conf", 'r').read()
@@ -794,48 +827,51 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 
 def kernel_harden(): # removed sysctl -w kernel.modules_disabled=1 because it disallows nft to run
-	sys(
+	custom_conf = """
+dev.tty.ldisc_autoload=0
+fs.protected_fifos=2
+fs.protected_hardlinks=1
+fs.protected_regular=2
+fs.protected_symlinks=1
+fs.suid_dumpable=0
+kernel.core_uses_pid=1
+kernel.ctrl-alt-del=0
+kernel.dmesg_restrict=1
+kernel.kptr_restrict=2
+kernel.perf_event_paranoid=3
+kernel.randomize_va_space=2
+kernel.sysrq=0
+kernel.unprivileged_bpf_disabled=1
+kernel.yama.ptrace_scope=1
+net.core.bpf_jit_harden=2
+net.ipv4.conf.all.accept_redirects=0
+net.ipv4.conf.all.accept_source_route=0
+net.ipv4.conf.all.bootp_relay=0
+net.ipv4.conf.all.forwarding=0
+net.ipv4.conf.all.log_martians=1
+net.ipv4.conf.all.mc_forwarding=0
+net.ipv4.conf.all.proxy_arp=0
+net.ipv4.conf.all.rp_filter=1
+net.ipv4.conf.all.send_redirects=0
+net.ipv4.conf.default.accept_redirects=0
+net.ipv4.conf.default.accept_source_route=0
+net.ipv4.conf.default.log_martians=1
+net.ipv4.icmp_echo_ignore_broadcasts=1
+net.ipv4.icmp_ignore_bogus_error_responses=1
+net.ipv4.tcp_syncookies=1
+net.ipv4.tcp_timestamps=0
+net.ipv6.conf.all.accept_redirects=0
+net.ipv6.conf.all.accept_source_route=0
+net.ipv6.conf.default.accept_redirects=0
+net.ipv6.conf.default.accept_source_route=0
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv4.tcp_rfc1337=1
+net.ipv4.ip_forward=0
 """
-sysctl -w  dev.tty.ldisc_autoload=0
-sysctl -w  fs.protected_fifos=2
-sysctl -w  fs.protected_hardlinks=1
-sysctl -w  fs.protected_regular=2
-sysctl -w  fs.protected_symlinks=1
-sysctl -w  fs.suid_dumpable=0
-sysctl -w  kernel.core_uses_pid=1
-sysctl -w  kernel.ctrl-alt-del=0
-sysctl -w  kernel.dmesg_restrict=1
-sysctl -w  kernel.kptr_restrict=2
-sysctl -w  kernel.perf_event_paranoid=3
-sysctl -w  kernel.randomize_va_space=2
-sysctl -w  kernel.sysrq=0
-sysctl -w  kernel.unprivileged_bpf_disabled=1
-sysctl -w  kernel.yama.ptrace_scope=1
-sysctl -w  net.core.bpf_jit_harden=2
-sysctl -w  net.ipv4.conf.all.accept_redirects=0
-sysctl -w  net.ipv4.conf.all.accept_source_route=0
-sysctl -w  net.ipv4.conf.all.bootp_relay=0
-sysctl -w  net.ipv4.conf.all.forwarding=0
-sysctl -w  net.ipv4.conf.all.log_martians=1
-sysctl -w  net.ipv4.conf.all.mc_forwarding=0
-sysctl -w  net.ipv4.conf.all.proxy_arp=0
-sysctl -w  net.ipv4.conf.all.rp_filter=1
-sysctl -w  net.ipv4.conf.all.send_redirects=0
-sysctl -w  net.ipv4.conf.default.accept_redirects=0
-sysctl -w  net.ipv4.conf.default.accept_source_route=0
-sysctl -w  net.ipv4.conf.default.log_martians=1
-sysctl -w  net.ipv4.icmp_echo_ignore_broadcasts=1
-sysctl -w  net.ipv4.icmp_ignore_bogus_error_responses=1
-sysctl -w  net.ipv4.tcp_syncookies=1
-sysctl -w  net.ipv4.tcp_timestamps=0
-sysctl -w  net.ipv6.conf.all.accept_redirects=0
-sysctl -w  net.ipv6.conf.all.accept_source_route=0
-sysctl -w  net.ipv6.conf.default.accept_redirects=0
-sysctl -w  net.ipv6.conf.default.accept_source_route=0
-sysctl -w  net.ipv6.conf.all.disable_ipv6=1
-sysctl -w  net.ipv4.tcp_rfc1337=1
-sysctl -w  net.ipv4.ip_forward=0
-""")
+
+	open("/etc/sysctl.d/99-custom.conf", "w").write(custom_conf)
+
+	sys("sysctl -p /etc/sysctl.d/99-custom.conf")
 	
 
 	sys("systemctl disable kdump") # TODO: check if works on fresh VM
