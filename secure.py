@@ -599,7 +599,8 @@ def package_cleaner(): # remove bad packages
 		"libnet-akismet-perl",
 		"ruby-akismet", "gameconqueror", "telnetd",
 		"rsh-server", "mines", "mahjongg", "sudoku", "aisleriot",
-		"netcat-openbsd", "netcat-traditional", "ncat"
+		"netcat-openbsd", "netcat-traditional", "ncat", "remmina*",
+		"john"
 	)
 
 	for package in bad_packages:
