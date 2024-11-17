@@ -57,7 +57,8 @@ REMOVE_IF_NOT_CRITICAL: Dict[str, str] = {
 	"apache2": "apache2",
 	"vsftpd": "vsftpd",
 	"ssh": "openssh-server",
-	"pure-ftpd": "pure-ftpd"
+	"pure-ftpd": "pure-ftpd",
+	"postfix": "postifx"
 }
 
 IGNORE_USERS: List[str] = [
@@ -680,7 +681,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 	try:
 		conf = open("/etc/login.defs", 'r').read()
 
-		conf = set_config_variable(conf, "PASS_MAX_DAYS", "90")
+		conf = set_config_variable(conf, "PASS_MAX_DAYS", "90") # TODO: figure out why this just duplicates the variable instead of replacing it
 		conf = set_config_variable(conf, "PASS_MIN_DAYS", '7')
 		conf = set_config_variable(conf, "PASS_WARN_AGE", "14")
 		conf = set_config_variable(conf, "ENCRYPT_METHOD", "SHA512")
