@@ -269,10 +269,6 @@ def service_management(): # TODO: start stopped critical services
 			apt.remove(packagename)
 			continue
 
-		if servicename not in services:
-			if bool_input(f"Non-critical service package {packagename} may be installed, try to remove? "):
-				apt.remove(packagename)
-
 def prohibited_files():
 	prohibited_files = (
 		glob.glob("/home/**/*.mp3", recursive=True) + 
