@@ -375,13 +375,14 @@ APT::Sandbox::Seccomp "1";
 
 	open("/etc/apt/apt.conf.d/97deb-secure", 'w').write(custom_override_conf)
 
-
-
 	try: conf = open("/etc/apt/apt.conf.d/50unattended-upgrades", 'r').read()
 	except FileNotFoundError: conf = ""
 
 	conf = set_config_variable(conf, "Unattended-Upgrade::Remove-Unused-Dependencies", '"true";')
 	conf = set_config_variable(conf, "Unattended-Upgrade::Remove-Unused-Kernel-Packages", '"true";')
+	conf = set_config_variable(conf, "Unattended-Upgrade::Automatic-Reboot", '"true";')
+	conf = set_config_variable(conf, "Unattended-Upgrade::Automatic-Reboot-Time", '"03:00	";')
+
 
 	open("/etc/apt/apt.conf.d/50unattended-upgrades", 'w').write(conf)
 
@@ -597,9 +598,9 @@ def package_cleaner(): # remove bad packages
 		"manaplus", "ettercap", "ettercap-graphical", "zenmap",
 		"freeciv", "kismet-plugins",
 		"libnet-akismet-perl",
-		"ruby-akismet", "gameconqueror", "telnetd",
+		"ruby-akismet", "gameconqueror", "telnetd",     
 		"rsh-server", "mines", "mahjongg", "sudoku", "aisleriot",
-		"netcat-openbsd", "netcat-traditional", "ncat", "remmina*",
+		"netcat-openbsd", "netcat-traditional", "ncat", "remmina",
 		"john"
 	)
 
@@ -647,6 +648,7 @@ def file_permissions(): # TODO: V-260489, V-260490, V-260491
 
 
 	sys("chmod 440 /etc/sudoers")
+	sys("chmod 440 -R /etc/sudoers.d")
 	sys("chmod 444 /etc/machine-id")
 
 	sys("chmod 600 /etc/ssh/ssh_host_rsa_key")
@@ -677,6 +679,9 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 	try:
 		conf = open("/etc/login.defs", 'r').read()
+		
+
+		conf = '\n'.join(line for line in conf.splitlines() if not "PASS_" in line)
 
 		conf = set_config_variable(conf, "PASS_MAX_DAYS", "90") # TODO: figure out why this just duplicates the variable instead of replacing it
 		conf = set_config_variable(conf, "PASS_MIN_DAYS", '7')
