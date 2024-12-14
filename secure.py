@@ -760,7 +760,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 
 			auth_conf = open("/etc/pam.d/common-auth", 'r').read()
 
-			for line in re.finditer(r"^.*pam_fail\b(lock|delay)\b\.so.*$", auth_conf, re.MULTILINE): # clear all faillock and faildelay lines
+			for line in re.finditer(r"^.*pam_fail(lock|delay)\.so.*$", auth_conf, re.MULTILINE): # clear all faillock and faildelay lines
 				auth_conf = auth_conf.replace(line.string(), '')
 
 			try:
