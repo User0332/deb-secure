@@ -496,7 +496,7 @@ def user_management(): # TODO: log all new
 				continue
 
 			if user.pw_uid == 0: # non-root uid 0 user, must delete
-				remove = bool_input(f"URGENT: non-root uid 0 user {name} found, remove? ")
+				remove = bool_input_nolock(f"URGENT: non-root uid 0 user {name} found, remove? ")
 
 				if remove:
 					sys(f"deluser {name}")
