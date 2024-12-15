@@ -777,8 +777,6 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 			except AttributeError:
 				failure("pam_deny line doesn't exist in common-auth") # fix this
 
-			auth_conf+="\n\naccount required   pam_faillock.so"
-
 			auth_conf = auth_conf.replace("nullok", '')
 
 			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
