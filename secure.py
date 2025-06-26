@@ -16,7 +16,6 @@ from utils import (
 	apt, bool_input, bool_input_nolock, get_list_input, get_list_input_nolock, removeprefix_compat, 
 	rmrf, set_config_variable, sys, _sys,
 	warn, failure, threaded_input,
-	get_usertype_input
 )
 import utils
 
@@ -30,10 +29,8 @@ DEFAULT_MODULES: List[str] = [
 	"apt-config", # done, this is first to ensure that all following modules can install the necessary packages
 	"ctrl-alt-del", # done
 	"gsettings-and-gdm-config", # done
-	"lightdm",
+	"lightdm", # done
 	"usb-security", # done
-	# "time-config", # done
-	"grub-config",
 	"password-policy", # done -- has todos
 	"firewall", # done -- maybe add more in the future?
 	"sshd", # done
@@ -48,7 +45,6 @@ DEFAULT_MODULES: List[str] = [
 	"prohibited-files", # done
 	"service-management", # done, see todos
 	"file-attributes", # done
-	"encrypt-partitions", 
 	"upgrade-system", # done - see todos
 ]
 
@@ -231,19 +227,6 @@ def lightdm_config():
 
 			open("/etc/lightdm/lightdm.conf", 'w').write(lightdm_conf)
 		except FileNotFoundError: pass # we are not using gdm3
-
-def time_config(): # TODO: V-260519, V-260520, V-260521
-	apt.install("chrony")
-
-	sys("dpkg -P --force-all systemd-timesyncd")
-	sys("dpkg -P --force-all ntp")
-
-def encrypt_partitions(): # TODO: V-260484
-	pass
-
-
-def grub_config(): # TODO: V-260470, V-260471
-	pass
 
 def disable_ctrl_alt_del():
 	sys("systemctl disable ctrl-alt-del.target")
@@ -929,17 +912,13 @@ module_lookup = {
 	"vsftpd": vsftpd_config,
 	"nginx": nginx_config,
 	"apache2": apache2_config,
-	"grub-config": grub_config,
 	"user-management": user_management,
 	"apt-config": apt_config,
 	"prohibited-files": prohibited_files,
 	"service-management": service_management,
 	"ctrl-alt-del": disable_ctrl_alt_del,
-	"time-config": time_config,
-	"encrypt-partitions": encrypt_partitions,
 	"gsettings-and-gdm-config": gsettings_and_gdm_config,
 	"lightdm": lightdm_config,
-	"usb-security": usb_security,
 	"file-attributes": file_attributes
 }
 
