@@ -966,6 +966,8 @@ for module in modules:
 
 	waiting_threads[module] = next_task
 
+while len(waiting_threads) > 0: pass
+
 # TODO: have the user input various services that are required
 # TODO: see old script file
 # TODO: log errors & redirect command output to log file
