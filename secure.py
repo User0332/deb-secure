@@ -708,9 +708,7 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 			except (TypeError, AttributeError):
 				auth_conf+="\n\nauth required pam_tally2.so onerr=fail deny=5 unlock_time=1800"
 
-			open("/etc/pam.d/common-auth", 'w').write(conf)
-
-
+			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
 		except OSError as e: failure(e)		
 	else:
 		apt.install("libpam-pwquality", "libpam-modules")
@@ -750,20 +748,16 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 				pam_unix = re.search(r"^.*pam_unix\.so.*$", auth_conf, re.MULTILINE).group()
 
 				auth_conf = auth_conf.replace(pam_unix, f"auth	required	pam_faildelay.so delay=5000\nauth    required    pam_faillock.so preauth silent audit deny=5 unlock_time=1800\n\n{pam_unix}")
-			except AttributeError:
-				failure("pam_unix line doesn't exist in common-auth") # fix this
 
-			try:
 				pam_deny = re.search(r"^.*pam_deny\.so.*$", auth_conf, re.MULTILINE).group()
 
 				auth_conf = auth_conf.replace(pam_deny, f"auth    [default=die] pam_faillock.so authfail audit deny=5 unlock_time=1800\nauth    sufficient pam_faillock.so authsucc audit deny=5 unlock_time=1800\n\n{pam_deny}")
+
+				auth_conf = auth_conf.replace("nullok", '')
+
+				open("/etc/pam.d/common-auth", 'w').write(auth_conf)
 			except AttributeError:
-				failure("pam_deny line doesn't exist in common-auth") # fix this
-
-			auth_conf = auth_conf.replace("nullok", '')
-
-			open("/etc/pam.d/common-auth", 'w').write(auth_conf)
-
+				failure("did not apply auth changes") # fix
 
 			acc_conf = open("/etc/pam.d/common-account", 'r').read()
 
@@ -780,11 +774,10 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 			try:
 				pam_lastlog = re.search(r"^.*pam_lastlog\.so.*$", login_conf, re.MULTILINE).group()
 
-
+				open("/etc/pam.d/login", 'w').write(login_conf)
 			except AttributeError:
 				failure("pam_lastlog line doesn't exist in login")
 
-			open("/etc/pam.d/login", 'w').write(login_conf)
 
 			passwd_conf = open("/etc/pam.d/common-password", 'r').read()
 		
@@ -799,10 +792,11 @@ def password_policy(): # install tmpdir?, also see (V-260575, V-260574, V-260573
 					passwd_conf = "password requisite pam_pwquality.so retry=3 minlen=15 difok=8 ucredit=-1 dcredit=-1 ocredit=-1 lcredit=-1 dictcheck=1\n\n"+passwd_conf
 
 				passwd_conf = passwd_conf.replace("nullok", '')
+
+				open("/etc/pam.d/common-password", 'w').write(passwd_conf)
 			except AttributeError:
 				failure("pam_unix line doesn't exist in common-password")
 
-			open("/etc/pam.d/common-password", 'w').write(passwd_conf)
 		except OSError as e: failure(e)
 
 	# FOR ALL VERSIONS
