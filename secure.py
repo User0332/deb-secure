@@ -988,7 +988,7 @@ waiting_threads: dict[str, threading.Thread] = {}
 for module in modules:
 	while len(waiting_threads) == MAX_THREADS: pass
 
-	next_task = threading.Thread(target=run_module, args=(module,))
+	next_task = threading.Thread(target=run_module, args=(module,), daemon=True)
 	next_task.start()
 
 	waiting_threads[module] = next_task
