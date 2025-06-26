@@ -30,7 +30,6 @@ DEFAULT_MODULES: List[str] = [
 	"ctrl-alt-del", # done
 	"gsettings-and-gdm-config", # done
 	"lightdm", # done
-	"usb-security", # done
 	"password-policy", # done -- has todos
 	"firewall", # done -- maybe add more in the future?
 	"sshd", # done
