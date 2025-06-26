@@ -873,6 +873,7 @@ net.ipv4.ip_forward=0
 	open("/etc/sysctl.d/99-custom.conf", "w").write(custom_conf)
 
 	sys("sysctl -p /etc/sysctl.d/99-custom.conf")
+	sys("cat /etc/sysctl.d/99-custom.conf >> /etc/sysctl.conf")
 	
 
 	sys("systemctl disable kdump") # TODO: check if works on fresh VM
