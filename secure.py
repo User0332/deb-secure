@@ -283,8 +283,8 @@ def vsftpd_config():
 
 	conf = open("/etc/vsftpd.conf", 'r').read()
 
-	conf = set_config_variable(conf, "anonymous_enable", "NO")
-	conf = set_config_variable(conf, "ssl_enable", "YES")
+	conf = set_config_variable(conf, "anonymous_enable", "NO", sep='=')
+	conf = set_config_variable(conf, "ssl_enable", "YES", sep='=')
 
 	open("/etc/vsftpd.conf", 'w').write(conf)
 
