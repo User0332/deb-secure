@@ -956,7 +956,7 @@ def sigint_handler(_=None, __=None):
 
 signal.signal(signal.SIGINT, sigint_handler)
 
-waiting_threads: dict[str, threading.Thread] = {}
+waiting_threads: Dict[str, threading.Thread] = {}
 
 for module in modules:
 	while len(waiting_threads) == MAX_THREADS: pass
