@@ -485,6 +485,9 @@ def user_management(): # TODO: log all new
 
 				continue
 
+			print(f"attempting to update password expiry info for {user}...")
+			sys(f"chage -M 90 -m 7 -W 14 {user}")
+
 			if name in users:
 				print(f"trying to remove {name} from admin group...")
 				sys(f"deluser {name} adm")
