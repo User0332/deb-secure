@@ -849,11 +849,10 @@ net.ipv4.tcp_rfc1337=1
 net.ipv4.ip_forward=0
 """
 
-	open("./99-custom.conf", "w").write(custom_conf)
+	open("/etc/sysctl.d/99-sysctl.conf", "a").write(custom_conf)
 
-	sys("sysctl -p ./99-custom.conf")
-	sys("cat ./99-custom.conf >> /etc/sysctl.conf")
-	
+	sys("sysctl --system")
+
 
 	sys("systemctl disable kdump") # TODO: check if works on fresh VM
 	sys("systemctl mask kdump")
